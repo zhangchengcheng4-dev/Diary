@@ -1,13 +1,23 @@
 ﻿package com.vibecoding.ui.placeholder
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -31,63 +41,97 @@ import com.vibecoding.ui.placeholder.theme.PlaceholderColors
 fun PlaceholderAppRoot() {
     val navController = rememberNavController()
 
-    Scaffold(
-        modifier = Modifier.background(PlaceholderColors.Background),
-        bottomBar = {
-            val currentDestination = navController.currentBackStackEntryAsState().value?.destination
-            NavigationBar {
-                val items = listOf(
-                    PlaceholderRoute.Home to "首页",
-                    PlaceholderRoute.Calendar to "日历",
-                    PlaceholderRoute.Search to "搜索",
-                    PlaceholderRoute.Profile to "我的"
-                )
-                items.forEach { (route, title) ->
-                    NavigationBarItem(
-                        selected = currentDestination.isInTopRoute(route.route),
-                        onClick = { navController.navigate(route.route) },
-                        icon = { Text("•") },
-                        label = { Text(title) }
+    Box(modifier = Modifier.background(PlaceholderColors.Background)) {
+        Scaffold(
+            modifier = Modifier.background(PlaceholderColors.Background),
+            bottomBar = {
+                val currentDestination = navController.currentBackStackEntryAsState().value?.destination
+                NavigationBar {
+                    val leftItems = listOf(
+                        PlaceholderRoute.Home to "日记",
+                        PlaceholderRoute.Search to "搜索"
                     )
+                    val rightItems = listOf(
+                        PlaceholderRoute.Calendar to "日历",
+                        PlaceholderRoute.Profile to "我的"
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        leftItems.forEach { (route, title) ->
+                            NavigationBarItem(
+                                selected = currentDestination.isInTopRoute(route.route),
+                                onClick = { navController.navigate(route.route) },
+                                icon = { Text("•") },
+                                label = { Text(title) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f))
+                        rightItems.forEach { (route, title) ->
+                            NavigationBarItem(
+                                selected = currentDestination.isInTopRoute(route.route),
+                                onClick = { navController.navigate(route.route) },
+                                icon = { Text("•") },
+                                label = { Text(title) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = PlaceholderRoute.Home.route,
+                modifier = Modifier.padding(padding).padding(horizontal = 12.dp)
+            ) {
+                composable(PlaceholderRoute.Home.route) {
+                    DiaryListScreen(
+                        diaries = MockData.diaries,
+                        onDiaryClick = { id -> navController.navigate(PlaceholderRoute.Detail.withId(id)) }
+                    )
+                }
+                composable(PlaceholderRoute.Record.route) {
+                    RecordScreen(
+                        onFinish = { navController.navigate(PlaceholderRoute.Processing.route) }
+                    )
+                }
+                composable(PlaceholderRoute.Processing.route) {
+                    ProcessingScreen(
+                        onDone = { navController.navigate(PlaceholderRoute.Detail.withId(MockData.diaries.first().id)) }
+                    )
+                }
+                composable(
+                    route = PlaceholderRoute.Detail.route,
+                    arguments = listOf(navArgument("id") { type = NavType.StringType })
+                ) { backStack ->
+                    val id = backStack.arguments?.getString("id").orEmpty()
+                    val diary = MockData.diaries.firstOrNull { it.id == id } ?: MockData.diaries.first()
+                    DiaryDetailScreen(diary = diary)
+                }
+                composable(PlaceholderRoute.Calendar.route) { CalendarScreen() }
+                composable(PlaceholderRoute.Search.route) { SearchScreen(diaries = MockData.diaries) }
+                composable(PlaceholderRoute.Profile.route) {
+                    ProfileScreen(stats = MockData.profileStats, settings = MockData.profileSettings)
                 }
             }
         }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = PlaceholderRoute.Home.route,
-            modifier = Modifier.padding(padding).padding(horizontal = 12.dp)
+
+        FloatingActionButton(
+            onClick = { navController.navigate(PlaceholderRoute.Record.route) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .offset(y = (-24).dp)
+                .size(68.dp)
+                .clip(CircleShape),
+            shape = CircleShape,
+            containerColor = PlaceholderColors.Accent
         ) {
-            composable(PlaceholderRoute.Home.route) {
-                DiaryListScreen(
-                    diaries = MockData.diaries,
-                    onDiaryClick = { id -> navController.navigate(PlaceholderRoute.Detail.withId(id)) },
-                    onMicClick = { navController.navigate(PlaceholderRoute.Record.route) }
-                )
-            }
-            composable(PlaceholderRoute.Record.route) {
-                RecordScreen(
-                    onFinish = { navController.navigate(PlaceholderRoute.Processing.route) }
-                )
-            }
-            composable(PlaceholderRoute.Processing.route) {
-                ProcessingScreen(
-                    onDone = { navController.navigate(PlaceholderRoute.Detail.withId(MockData.diaries.first().id)) }
-                )
-            }
-            composable(
-                route = PlaceholderRoute.Detail.route,
-                arguments = listOf(navArgument("id") { type = NavType.StringType })
-            ) { backStack ->
-                val id = backStack.arguments?.getString("id").orEmpty()
-                val diary = MockData.diaries.firstOrNull { it.id == id } ?: MockData.diaries.first()
-                DiaryDetailScreen(diary = diary)
-            }
-            composable(PlaceholderRoute.Calendar.route) { CalendarScreen() }
-            composable(PlaceholderRoute.Search.route) { SearchScreen(diaries = MockData.diaries) }
-            composable(PlaceholderRoute.Profile.route) {
-                ProfileScreen(stats = MockData.profileStats, settings = MockData.profileSettings)
-            }
+            Text(
+                text = "麦克风",
+                color = PlaceholderColors.Background
+            )
         }
     }
 }

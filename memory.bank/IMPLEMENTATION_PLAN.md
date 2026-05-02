@@ -31,6 +31,15 @@ Feature development is paused after the planning phase and before real business 
 
 ## 5. Define API Contracts
 - Specify request/response schemas for login, upload audio, processing result, diary fetch, sync.
+- Lock Step 5 decisions:
+  - Auth: `email+password` only for MVP (phone+OTP deferred).
+  - AI result fields: `transcript`, `category`, `tags`, `polishedArticle`.
+  - Fixed category set: `work`, `study`, `life`, `emotion`, `health`.
+  - Dynamic tag limit: max `5`, user-editable.
+  - Diary list: reverse chronological + pagination, `pageSize=20`.
+  - Sync conflict: server-wins.
+  - Retry policy: network errors retryable; auth/permission non-retryable.
+  - Audio constraints: `m4a/aac`, max `30 minutes`, auto-start AI after upload.
 - Document error codes and retry behavior.
 - Test: API contract review passes with frontend and backend agreement.
 
@@ -94,3 +103,4 @@ Feature development is paused after the planning phase and before real business 
 - Run regression on core scenarios: first login, first recording, processing, browse, offline sync recovery.
 - Track and fix P0/P1 issues only for MVP release.
 - Test: QA checklist reaches pass criteria for all MVP-critical scenarios.
+

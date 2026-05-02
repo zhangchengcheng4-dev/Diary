@@ -30,8 +30,18 @@ Build a mock-only Compose UI shell so the app can demonstrate page structure and
 3. No real backend or AI logic is invoked.
 
 ## Sign-off Record
-- Product: `Pending`
-- Android: `Pending`
-- Backend: `Pending`
-- Date: `Pending`
-- Final Result: `Pending`
+- Product: `Pending (Review Needed)`
+- Android: `Completed (Implemented + Build Verified)`
+- Backend: `N/A for UI Placeholder`
+- Date: `2026-05-02`
+- Final Result: `Implementation Completed, Pending Cross-role Sign-off`
+
+## Execution Notes (2026-05-02)
+1. All in-scope placeholder pages are present and reachable in app shell navigation.
+2. Required flows implemented:
+   - Home -> detail on card click.
+   - Home -> record -> processing -> detail.
+   - Bottom navigation switches all main pages.
+3. Bottom navigation updated to 4 tabs with centered floating mic action to `RecordScreen` visible on main pages.
+4. Home page inline mic button removed to avoid duplicate entry point.
+5. Validation build passed: `:app:compileDebugKotlin`.
