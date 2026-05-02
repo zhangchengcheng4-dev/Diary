@@ -60,3 +60,16 @@
 
 
 
+
+### Step 6
+- Added independent Step 6 file: `STEP6_LOCAL_PERSISTENCE_FOUNDATION_SIGNOFF.md`.
+- 2026-05-03 implementation completed:
+  - Added Room foundation with DB name `diary_mvp.db`.
+  - Enabled `kapt` and added Room dependencies (`runtime`, `ktx`, `compiler`).
+  - Implemented entities: `DiaryEntryEntity`, `AudioAssetEntity`, `SyncStateEntity`.
+  - Implemented DAO skeleton: `DiaryEntryDao`, `AudioAssetDao`, `SyncStateDao`.
+  - Implemented `AppDatabase` singleton with `version=1` and `fallbackToDestructiveMigration`.
+  - Soft-delete + audio-record cleanup path scaffolded (`softDelete`, `deleteByEntryId`).
+- Validation:
+  - Kotlin compile passed: `:app:compileDebugKotlin`.
+- Current status: `Completed (Ready for Step 7)`.
