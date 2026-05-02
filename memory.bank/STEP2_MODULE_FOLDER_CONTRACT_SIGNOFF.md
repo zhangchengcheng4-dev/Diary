@@ -82,6 +82,31 @@ Hard constraints:
 4. `domain` MUST NOT depend on `data`, `network`, `storage`, or `sync`.
 5. `network`, `storage`, and `sync` MUST NOT depend on `ui` or `viewmodel`.
 
+## Decision Backfill (2026-05-02)
+1. Scope linkage:
+   - This module contract supports MVP only: recording, AI processing, diary save, list, detail edit/delete, email/password login, cloud sync baseline.
+   - `search`, `calendar`, `analytics` remain out-of-scope but must have extension-friendly structure.
+2. Backend integration boundary:
+   - Android phase defines abstraction contracts only.
+   - Backend stack is tentatively `FastAPI + MongoDB + OSS/COS + Celery/Redis`.
+3. Auth boundary:
+   - MVP login uses `email+password`.
+   - Session storage is limited to `sessionToken + sessionExpiresAt`; no refresh token in MVP.
+4. Recording/sync boundary:
+   - Recording supports start/pause/resume/stop.
+   - Upload/process auto-starts when recording ends.
+   - Failed sync state must be retained for manual retry.
+5. Data boundary expectations:
+   - `Category` fixed set includes `reading`, `food`, `mood`, `work`, `sports`, `entertainment`.
+   - `DynamicTag.source` must support `ai`, `manual`, `user_edited`.
+   - `SyncState` is the canonical lifecycle state holder for diary/audio/AI processing only; auth state is separate.
+6. Editing/deletion boundary:
+   - Detail edit can update title, article, category, dynamic tags, and date.
+   - Audio file is not editable.
+   - Soft delete removes local audio immediately and syncs deletion remotely.
+7. Date boundary:
+   - Date edit must update `entryOccurredAt` and `entryDateLocal` together and immediately affect ordering/grouping.
+
 ## Validation Test (for Step 2)
 1. Architecture review confirms all 7 modules are documented.
 2. Dependency direction is explicit and reviewable.
