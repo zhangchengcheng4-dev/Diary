@@ -38,7 +38,9 @@ import com.vibecoding.ui.placeholder.screens.SearchScreen
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
 
 @Composable
-fun PlaceholderAppRoot() {
+fun PlaceholderAppRoot(
+    onLogout: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
     Box(modifier = Modifier.background(PlaceholderColors.Background)) {
@@ -110,9 +112,18 @@ fun PlaceholderAppRoot() {
                     DiaryDetailScreen(diary = diary)
                 }
                 composable(PlaceholderRoute.Calendar.route) { CalendarScreen() }
-                composable(PlaceholderRoute.Search.route) { SearchScreen(diaries = MockData.diaries) }
+                composable(PlaceholderRoute.Search.route) {
+                    SearchScreen(
+                        diaries = MockData.diaries,
+                        tagOptions = listOf("All", "Mood", "Food", "Work", "Sports")
+                    )
+                }
                 composable(PlaceholderRoute.Profile.route) {
-                    ProfileScreen(stats = MockData.profileStats, settings = MockData.profileSettings)
+                    ProfileScreen(
+                        stats = MockData.profileStats,
+                        settings = MockData.profileSettings,
+                        onLogout = onLogout
+                    )
                 }
             }
         }

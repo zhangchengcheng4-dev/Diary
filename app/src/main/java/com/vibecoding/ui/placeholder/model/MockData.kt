@@ -16,7 +16,7 @@ object MockData {
             title = "晚饭后的散步",
             preview = "今天吃完饭后在小区散步，风很舒服，心情慢慢平静下来。",
             dateText = "5月2日 周六",
-            category = "mood",
+            category = "Mood",
             tags = listOf("#散步", "#放松")
         ),
         DiaryUiModel(
@@ -24,7 +24,7 @@ object MockData {
             title = "读书一小时",
             preview = "晚上读了一个小时技术书，整理了几条关键笔记。",
             dateText = "5月1日 周五",
-            category = "reading",
+            category = "Work",
             tags = listOf("#读书", "#笔记")
         )
     )
