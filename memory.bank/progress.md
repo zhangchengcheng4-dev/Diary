@@ -93,3 +93,8 @@
   - Added shared state model `DateRangeUi` under `ui/placeholder/state/`.
   - Updated app-shell search route callsite to pass required `tagOptions`.
   - Kotlin compile check passed: `:app:compileDebugKotlin`.
+- 2026-05-03 backend contract skeleton completed:
+  - Added API contract skeletons for `audio/diary/sync` under `data/network` with `/v1/*` endpoint constants.
+  - Added repository interfaces under `data/repository` (`AudioRepository`, `DiaryRepository`, `SyncRepository`).
+  - Current scope is contract-only; real network implementation is pending.
+  - Kotlin compile check passed: `:app:compileDebugKotlin`.

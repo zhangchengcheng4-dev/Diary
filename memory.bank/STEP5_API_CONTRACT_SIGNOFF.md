@@ -74,3 +74,14 @@ Define stable MVP API contracts for auth, audio upload + AI processing, diary li
 - Date: `2026-05-03`
 - Final Result: `Step 5 Fully Confirmed (Product/Android/Backend)`
 
+
+## Execution Notes (2026-05-03 Backend Skeleton Update)
+1. Added API contract skeletons under `app/src/main/java/com/vibecoding/data/network/`:
+   - `ApiContracts.kt` (envelope/error/page + `/v1/*` endpoint constants)
+   - `AudioApi.kt` (`upload`, `job status`)
+   - `DiaryApi.kt` (`list/detail/create/update/delete`)
+   - `SyncApi.kt` (`push/pull`)
+2. Added repository entry interfaces under `app/src/main/java/com/vibecoding/data/repository/`:
+   - `AudioRepository`, `DiaryRepository`, `SyncRepository`
+3. Scope is contract-only (no real Retrofit/http implementation wired yet).
+4. Validation build passed: `:app:compileDebugKotlin`.

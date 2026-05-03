@@ -1,4 +1,4 @@
-package com.vibecoding.auth.network
+﻿package com.vibecoding.auth.network
 
 import com.vibecoding.auth.model.AuthErrorCode
 import com.vibecoding.auth.model.AuthException
@@ -11,8 +11,8 @@ import java.util.UUID
 
 object AuthEndpoints {
     const val BASE_URL = "https://dev-staging-placeholder.vibecoding.local"
-    const val LOGIN_PATH = "/login"
-    const val REGISTER_PATH = "/register"
+    const val LOGIN_PATH = "/v1/auth/login"
+    const val REGISTER_PATH = "/v1/auth/register"
 }
 
 interface AuthApi {
@@ -50,4 +50,3 @@ class FakeAuthApi : AuthApi {
         )
     }
 }
-
