@@ -45,3 +45,11 @@ Build a mock-only Compose UI shell so the app can demonstrate page structure and
 3. Bottom navigation updated to 4 tabs with centered floating mic action to `RecordScreen` visible on main pages.
 4. Home page inline mic button removed to avoid duplicate entry point.
 5. Validation build passed: `:app:compileDebugKotlin`.
+
+## Execution Notes (2026-05-03 UI Refactor Update)
+1. `DiaryListScreen` removed top search placeholder and switched to horizontal weak tag filtering (`All/Mood/Food/Work/Sports`).
+2. `SearchScreen` upgraded to controlled input `TextField` and supports external `tagOptions` injection.
+3. Search filter section now includes tag filtering and typed date-range callbacks via `DateField.Start` / `DateField.End`.
+4. Added shared state model: `ui/placeholder/state/DateRangeUi.kt`.
+5. Navigation callsite updated to pass `SearchScreen(tagOptions = ...)` explicitly.
+6. Compile verification passed after refactor: `:app:compileDebugKotlin`.

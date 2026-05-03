@@ -73,3 +73,23 @@
 - Validation:
   - Kotlin compile passed: `:app:compileDebugKotlin`.
 - Current status: `Completed (Ready for Step 7)`.
+
+### Step 7
+- Added independent Step 7 file: `STEP7_AUTHENTICATION_BASELINE_SIGNOFF.md`.
+- 2026-05-03 implementation completed:
+  - Added MVP auth baseline (`email+password`) with login/register UI and `AuthViewModel` state flow.
+  - Added secure session persistence with `EncryptedSharedPreferences` for `sessionToken` + `sessionExpiresAt`.
+  - Added startup session validity check and expired-session cleanup with forced return to login.
+  - Added logout path from Profile screen back to login.
+  - Added error mapping for `INVALID_CREDENTIALS`, `USER_NOT_FOUND`, `EMAIL_ALREADY_REGISTERED`, `SERVER_ERROR`, `NETWORK_ERROR`.
+  - Added placeholder auth endpoint contract (`baseUrl`, `/login`, `/register`) via auth API layer for later backend replacement.
+- Validation:
+  - Compile attempted: `:app:compileDebugKotlin`.
+  - Blocked by local env: `JAVA_HOME is not set and no 'java' command could be found in your PATH`.
+- Current status: `Implemented (Verification blocked by local Java env)`.
+- 2026-05-03 UI refactor update completed:
+  - Home (`DiaryListScreen`) removed inline search and added weak tag filter row (`All/Mood/Food/Work/Sports`).
+  - Search (`SearchScreen`) switched to controlled `TextField`, dynamic external `tagOptions`, compact result cards, and typed date callbacks (`DateField.Start/End`).
+  - Added shared state model `DateRangeUi` under `ui/placeholder/state/`.
+  - Updated app-shell search route callsite to pass required `tagOptions`.
+  - Kotlin compile check passed: `:app:compileDebugKotlin`.
