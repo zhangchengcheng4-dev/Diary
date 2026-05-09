@@ -130,3 +130,29 @@
   - Compile check passed: `:app:compileDebugKotlin`.
   - Same-day multiple entries accepted through independent `entryId` rows, Home Room list visibility, and Detail route by `entryId`.
 - Current status: `Implemented (Compile verified, ready for same-day real-device validation)`.
+
+### Step 11
+- Added independent Step 11 file: `STEP11_HOME_LIST_SCREEN_SIGNOFF.md`.
+- 2026-05-09 documentation sign-off completed:
+  - Confirmed Home uses Room-backed `DiaryListDbScreen`.
+  - Confirmed active diary query is reverse chronological by `entryOccurredAt DESC`.
+  - Confirmed Home cards display date, category, tags, and short preview text.
+  - Recorded partially completed pagination/seed-test areas without implementing them in this step.
+  - Accepted Room real-device loop validation as the current Step 11 basis.
+- Current status: `Documented (Ready for Step 12 MVP edit/delete)`.
+
+### Step 12
+- Added independent Step 12 file: `STEP12_DIARY_DETAIL_SCREEN_SIGNOFF.md`.
+- 2026-05-09 implementation completed:
+  - Added local edit mode to the Room-backed diary detail screen.
+  - Editable fields are limited to `title`, `polishedArticle`, `primaryCategoryId`, `dynamicTags`, and `entryDateLocal`.
+  - Date editing accepts `yyyy-MM-dd` and recalculates `entryOccurredAt` while preserving the original local time-of-day when possible.
+  - Tags are normalized by trimming, dropping blanks, removing duplicates, and keeping max 5.
+  - Added soft delete for `DiaryEntry.deletedAt` only.
+  - Delete returns to Home; Home list filters soft-deleted entries through `deletedAt IS NULL`.
+  - Audio files and `audio_assets` are not editable and are not deleted in this step.
+  - No AI, Step 13 sync, ASR, Xfyun, Step 9, or Step 10 main-chain changes were added.
+- Validation target:
+  - Compile check passed: `:app:compileDebugKotlin`.
+  - Real-device check: edit/save stays on Detail and refreshes; delete returns Home and removes the entry from the list.
+- Current status: `Implemented (Compile verified, ready for real-device edit/delete validation)`.

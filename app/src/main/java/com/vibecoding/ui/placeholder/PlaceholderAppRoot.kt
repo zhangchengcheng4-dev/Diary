@@ -132,6 +132,12 @@ fun PlaceholderAppRoot(
                         DiaryDetailDbScreen(
                             entryId = id,
                             onBack = { navController.popBackStack() },
+                            onDeleted = {
+                                navController.navigate(PlaceholderRoute.Home.route) {
+                                    popUpTo(PlaceholderRoute.Home.route) { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            },
                             onRetryProcessing = { navController.navigate(PlaceholderRoute.Processing.withEntryId(id)) }
                         )
                     } else {

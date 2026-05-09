@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +36,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,12 +50,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibecoding.auth.util.nowUtcMillis
+import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.app.BuildConfig
 import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -64,6 +70,7 @@ import java.util.Locale
 fun DiaryDetailDbScreen(
     entryId: String,
     onBack: () -> Unit,
+    onDeleted: () -> Unit = {},
     onRetryProcessing: () -> Unit = {}
 ) {
     val context = LocalContext.current.applicationContext
@@ -71,6 +78,15 @@ fun DiaryDetailDbScreen(
     val state by vm.uiState.collectAsState(initial = DiaryDetailDbUiState())
     val audioController = remember { DetailAudioPlayerController() }
     val currentAudio by rememberUpdatedState(state.audio)
+    val scope = rememberCoroutineScope()
+    var isEditing by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var editTitle by remember { mutableStateOf("") }
+    var editArticle by remember { mutableStateOf("") }
+    var editCategory by remember { mutableStateOf("") }
+    var editTags by remember { mutableStateOf("") }
+    var editDate by remember { mutableStateOf("") }
+    var editError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(state.audio?.playlistKey) {
         audioController.setAudio(state.audio)
@@ -89,6 +105,32 @@ fun DiaryDetailDbScreen(
         }
     }
 
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("删除日记") },
+            text = { Text("本阶段只会软删除日记记录，不删除本地音频文件。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            vm.softDelete()
+                            showDeleteConfirm = false
+                            onDeleted()
+                        }
+                    }
+                ) {
+                    Text("删除", color = PlaceholderColors.Accent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("取消", color = PlaceholderColors.SecondaryText)
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -101,6 +143,57 @@ fun DiaryDetailDbScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item { SummaryCard(state = state) }
+            item {
+                DetailActionCard(
+                    isEditing = isEditing,
+                    onEdit = {
+                        editTitle = state.storedTitle.ifBlank { state.title }
+                        editArticle = state.polishedArticle
+                        editCategory = state.category.ifBlank { "life" }
+                        editTags = state.tags.joinToString(", ")
+                        editDate = state.entryDateLocal
+                        editError = null
+                        isEditing = true
+                    },
+                    onDelete = { showDeleteConfirm = true }
+                )
+            }
+            if (isEditing) {
+                item {
+                    EditDiaryCard(
+                        title = editTitle,
+                        onTitleChange = { editTitle = it },
+                        polishedArticle = editArticle,
+                        onPolishedArticleChange = { editArticle = it },
+                        category = editCategory,
+                        onCategoryChange = { editCategory = it },
+                        tags = editTags,
+                        onTagsChange = { editTags = it },
+                        entryDate = editDate,
+                        onEntryDateChange = { editDate = it },
+                        error = editError,
+                        onCancel = {
+                            editError = null
+                            isEditing = false
+                        },
+                        onSave = {
+                            scope.launch {
+                                val error = vm.saveEdits(
+                                    title = editTitle,
+                                    polishedArticle = editArticle,
+                                    category = editCategory,
+                                    tagsText = editTags,
+                                    entryDateLocal = editDate
+                                )
+                                editError = error
+                                if (error == null) {
+                                    isEditing = false
+                                }
+                            }
+                        }
+                    )
+                }
+            }
             if (DiaryProcessingStatus.canRetry(state.processingStatus) || DiaryProcessingStatus.needsProcessing(state.processingStatus)) {
                 item { ProcessingActionCard(state.processingStatus, onRetryProcessing) }
             }
@@ -169,6 +262,107 @@ private fun SummaryCard(state: DiaryDetailDbUiState) {
         Text(state.displayTime, color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(12.dp))
         Chip(text = state.category.ifBlank { "life" })
+    }
+}
+
+@Composable
+private fun DetailActionCard(
+    isEditing: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    SoftCard {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = onEdit,
+                enabled = !isEditing,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(if (isEditing) "编辑中" else "编辑")
+            }
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("删除", color = PlaceholderColors.Accent)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditDiaryCard(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    polishedArticle: String,
+    onPolishedArticleChange: (String) -> Unit,
+    category: String,
+    onCategoryChange: (String) -> Unit,
+    tags: String,
+    onTagsChange: (String) -> Unit,
+    entryDate: String,
+    onEntryDateChange: (String) -> Unit,
+    error: String?,
+    onCancel: () -> Unit,
+    onSave: () -> Unit
+) {
+    SoftCard {
+        Text("编辑日记", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = title,
+            onValueChange = onTitleChange,
+            label = { Text("标题") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = polishedArticle,
+            onValueChange = onPolishedArticleChange,
+            label = { Text("正文") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 4
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = category,
+            onValueChange = onCategoryChange,
+            label = { Text("分类") },
+            supportingText = { Text("work / study / life / emotion / health") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = tags,
+            onValueChange = onTagsChange,
+            label = { Text("标签") },
+            supportingText = { Text("用逗号分隔，最多 5 个") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedTextField(
+            value = entryDate,
+            onValueChange = onEntryDateChange,
+            label = { Text("日期") },
+            supportingText = { Text("yyyy-MM-dd") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        if (error != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(error, color = PlaceholderColors.Accent, fontSize = 12.sp)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                Text("取消", color = PlaceholderColors.SecondaryText)
+            }
+            Button(onClick = onSave, modifier = Modifier.weight(1f)) {
+                Text("保存")
+            }
+        }
     }
 }
 
@@ -440,7 +634,10 @@ private class DetailAudioPlayerController {
 data class DiaryDetailDbUiState(
     val entryId: String = "",
     val title: String = "语音日记",
+    val storedTitle: String = "",
     val displayTime: String = "",
+    val entryOccurredAt: String = "",
+    val entryDateLocal: String = "",
     val processingStatus: String = "loading",
     val category: String = "",
     val tags: List<String> = emptyList(),
@@ -451,7 +648,7 @@ data class DiaryDetailDbUiState(
 
 class DiaryDetailDbViewModel(
     context: Context,
-    entryId: String
+    private val entryId: String
 ) : ViewModel() {
     private val db = AppDatabase.getInstance(context.applicationContext)
     val uiState = db.diaryEntryDao().observeById(entryId).map { entry ->
@@ -464,7 +661,10 @@ class DiaryDetailDbViewModel(
             DiaryDetailDbUiState(
                 entryId = entry.entryId,
                 title = buildTitle(transcript, article, entry.title),
+                storedTitle = entry.title,
                 displayTime = formatDateTime(entry.entryOccurredAt.ifBlank { entry.createdAt }),
+                entryOccurredAt = entry.entryOccurredAt,
+                entryDateLocal = entry.entryDateLocal,
                 processingStatus = entry.processingStatus,
                 category = entry.primaryCategoryId,
                 tags = entry.dynamicTags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
@@ -482,6 +682,36 @@ class DiaryDetailDbViewModel(
                 )
             )
         }
+    }
+
+    suspend fun saveEdits(
+        title: String,
+        polishedArticle: String,
+        category: String,
+        tagsText: String,
+        entryDateLocal: String
+    ): String? {
+        val entry = db.diaryEntryDao().findById(entryId) ?: return "日记不存在"
+        val date = runCatching { LocalDate.parse(entryDateLocal.trim()) }.getOrNull()
+            ?: return "日期格式应为 yyyy-MM-dd"
+        val now = toIso8601Utc(nowUtcMillis())
+        db.diaryEntryDao().update(
+            entry.copy(
+                title = title.trim().ifBlank { "语音日记" },
+                polishedArticle = polishedArticle.trim(),
+                primaryCategoryId = normalizeCategory(category),
+                dynamicTags = normalizeTags(tagsText).joinToString(","),
+                entryOccurredAt = rebuildOccurredAt(entry.entryOccurredAt.ifBlank { entry.createdAt }, date),
+                entryDateLocal = date.toString(),
+                updatedAt = now
+            )
+        )
+        return null
+    }
+
+    suspend fun softDelete() {
+        val now = toIso8601Utc(nowUtcMillis())
+        db.diaryEntryDao().softDelete(entryId = entryId, deletedAt = now, updatedAt = now)
     }
 
     private fun buildTitle(transcript: String, article: String, storedTitle: String): String {
@@ -507,6 +737,38 @@ class DiaryDetailDbViewModel(
                 LocalDate.parse(value).format(DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.CHINA))
             }.getOrElse { value }
         }
+    }
+
+    private fun rebuildOccurredAt(originalUtc: String, newDate: LocalDate): String {
+        val zone = ZoneId.systemDefault()
+        return runCatching {
+            val originalLocal = Instant.parse(originalUtc).atZone(zone)
+            newDate
+                .atTime(originalLocal.toLocalTime())
+                .atZone(zone)
+                .toInstant()
+                .toString()
+        }.getOrElse {
+            newDate.atStartOfDay(zone).toInstant().toString()
+        }
+    }
+
+    private fun normalizeCategory(category: String): String {
+        val c = category.trim().lowercase()
+        return if (c in ALLOWED_CATEGORIES) c else "life"
+    }
+
+    private fun normalizeTags(tagsText: String): List<String> {
+        return tagsText
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .take(5)
+    }
+
+    companion object {
+        private val ALLOWED_CATEGORIES = setOf("work", "study", "life", "emotion", "health")
     }
 }
 
