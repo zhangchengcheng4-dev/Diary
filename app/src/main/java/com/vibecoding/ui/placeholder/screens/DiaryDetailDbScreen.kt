@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +69,25 @@ fun DiaryDetailDbScreen(
     val context = LocalContext.current.applicationContext
     val vm: DiaryDetailDbViewModel = viewModel(factory = DiaryDetailDbViewModelFactory(context, entryId))
     val state by vm.uiState.collectAsState(initial = DiaryDetailDbUiState())
+    val audioController = remember { DetailAudioPlayerController() }
+    val currentAudio by rememberUpdatedState(state.audio)
+
+    LaunchedEffect(state.audio?.playlistKey) {
+        audioController.setAudio(state.audio)
+    }
+
+    LaunchedEffect(audioController.isPlaying, audioController.currentSegmentIndex, state.audio?.playlistKey) {
+        while (audioController.isPlaying) {
+            currentAudio?.let { audioController.updateProgress(it) }
+            delay(300)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            audioController.release()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -84,7 +104,7 @@ fun DiaryDetailDbScreen(
             if (DiaryProcessingStatus.canRetry(state.processingStatus) || DiaryProcessingStatus.needsProcessing(state.processingStatus)) {
                 item { ProcessingActionCard(state.processingStatus, onRetryProcessing) }
             }
-            item { AudioPlayerCard(audio = state.audio) }
+            item { AudioPlayerCard(audio = state.audio, controller = audioController) }
             item { TranscriptCard(transcript = state.transcript) }
             item { PolishedArticleCard(transcript = state.transcript, polishedArticle = state.polishedArticle) }
             item { TagsCard(category = state.category, tags = state.tags) }
@@ -153,7 +173,10 @@ private fun SummaryCard(state: DiaryDetailDbUiState) {
 }
 
 @Composable
-private fun AudioPlayerCard(audio: AudioUiState?) {
+private fun AudioPlayerCard(
+    audio: AudioUiState?,
+    controller: DetailAudioPlayerController
+) {
     SoftCard {
         Text("录音", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(12.dp))
@@ -162,80 +185,13 @@ private fun AudioPlayerCard(audio: AudioUiState?) {
             return@SoftCard
         }
 
-        var player by remember(audio.playlistKey) { mutableStateOf<MediaPlayer?>(null) }
-        var isPlaying by remember(audio.playlistKey) { mutableStateOf(false) }
-        var progress by remember(audio.playlistKey) { mutableFloatStateOf(0f) }
-        var currentMs by remember(audio.playlistKey) { mutableStateOf(0L) }
-        var currentSegmentIndex by remember(audio.playlistKey) { mutableIntStateOf(0) }
-
-        fun releasePlayer() {
-            player?.release()
-            player = null
-        }
-
-        lateinit var startSegment: (Int) -> Unit
-        startSegment = { index ->
-            releasePlayer()
-            val segment = audio.playableSegments.getOrNull(index)
-            if (segment == null) {
-                isPlaying = false
-                currentSegmentIndex = 0
-                currentMs = 0L
-                progress = 0f
-            } else {
-                currentSegmentIndex = index
-                player = MediaPlayer().apply {
-                    setDataSource(segment.path)
-                    prepare()
-                    setOnCompletionListener {
-                        val nextIndex = index + 1
-                        if (nextIndex < audio.playableSegments.size) {
-                            startSegment(nextIndex)
-                        } else {
-                            releasePlayer()
-                            isPlaying = false
-                            currentSegmentIndex = 0
-                            currentMs = 0L
-                            progress = 0f
-                        }
-                    }
-                    start()
-                }
-                isPlaying = true
-            }
-        }
-
-        DisposableEffect(audio.playlistKey) {
-            onDispose {
-                releasePlayer()
-            }
-        }
-
-        LaunchedEffect(isPlaying, player, currentSegmentIndex) {
-            while (isPlaying) {
-                val elapsedBeforeCurrent = audio.playableSegments
-                    .take(currentSegmentIndex)
-                    .sumOf { it.durationMs }
-                currentMs = elapsedBeforeCurrent + (player?.currentPosition?.toLong() ?: 0L)
-                progress = (currentMs.toFloat() / audio.totalDurationMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
-                delay(300)
-            }
-        }
+        val isPlaying = controller.isPlaying
+        val progress = controller.progress
+        val currentMs = controller.currentMs
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(
-                onClick = {
-                    val current = player
-                    if (current?.isPlaying == true) {
-                        current.pause()
-                        isPlaying = false
-                    } else if (current != null) {
-                        current.start()
-                        isPlaying = true
-                    } else {
-                        startSegment(currentSegmentIndex)
-                    }
-                },
+                onClick = { controller.togglePlayback(audio) },
                 modifier = Modifier.size(width = 82.dp, height = 42.dp)
             ) {
                 Text(if (isPlaying) "暂停" else "播放")
@@ -389,6 +345,96 @@ data class AudioUiState(
     val playableSegments: List<AudioSegmentUiState> = segments.filter { it.exists }
     val totalDurationMs: Long = playableSegments.sumOf { it.durationMs }
     val playlistKey: String = playableSegments.joinToString("|") { "${it.audioAssetId}:${it.path}" }
+}
+
+private class DetailAudioPlayerController {
+    private var player: MediaPlayer? = null
+    private var playlistKey: String? = null
+
+    var isPlaying by mutableStateOf(false)
+        private set
+    var progress by mutableFloatStateOf(0f)
+        private set
+    var currentMs by mutableStateOf(0L)
+        private set
+    var currentSegmentIndex by mutableIntStateOf(0)
+        private set
+
+    fun setAudio(audio: AudioUiState?) {
+        val nextKey = audio?.playlistKey
+        if (nextKey != playlistKey) {
+            releasePlayerOnly()
+            resetPlayback()
+            playlistKey = nextKey
+        }
+    }
+
+    fun togglePlayback(audio: AudioUiState) {
+        if (audio.playableSegments.isEmpty()) return
+        setAudio(audio)
+        val current = player
+        if (current?.isPlaying == true) {
+            current.pause()
+            isPlaying = false
+        } else if (current != null) {
+            current.start()
+            isPlaying = true
+        } else {
+            startSegment(audio, currentSegmentIndex)
+        }
+    }
+
+    fun updateProgress(audio: AudioUiState) {
+        val elapsedBeforeCurrent = audio.playableSegments
+            .take(currentSegmentIndex)
+            .sumOf { it.durationMs }
+        currentMs = elapsedBeforeCurrent + (player?.currentPosition?.toLong() ?: 0L)
+        progress = (currentMs.toFloat() / audio.totalDurationMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+    }
+
+    fun release() {
+        releasePlayerOnly()
+        resetPlayback()
+        playlistKey = null
+    }
+
+    private fun startSegment(audio: AudioUiState, index: Int) {
+        releasePlayerOnly()
+        val segment = audio.playableSegments.getOrNull(index)
+        if (segment == null) {
+            resetPlayback()
+            return
+        }
+
+        currentSegmentIndex = index
+        player = MediaPlayer().apply {
+            setDataSource(segment.path)
+            prepare()
+            setOnCompletionListener {
+                val nextIndex = index + 1
+                if (nextIndex < audio.playableSegments.size) {
+                    startSegment(audio, nextIndex)
+                } else {
+                    releasePlayerOnly()
+                    resetPlayback()
+                }
+            }
+            start()
+        }
+        isPlaying = true
+    }
+
+    private fun releasePlayerOnly() {
+        player?.release()
+        player = null
+    }
+
+    private fun resetPlayback() {
+        isPlaying = false
+        progress = 0f
+        currentMs = 0L
+        currentSegmentIndex = 0
+    }
 }
 
 data class DiaryDetailDbUiState(

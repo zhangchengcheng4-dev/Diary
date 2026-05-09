@@ -11,6 +11,8 @@ import com.vibecoding.data.network.AudioApi
 import com.vibecoding.data.network.MockAudioApi
 import com.vibecoding.data.network.UploadAudioRequest
 import com.vibecoding.data.network.XfyunAudioApi
+import com.vibecoding.diary.DiaryAssemblyResult
+import com.vibecoding.diary.DiaryAssemblyUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -25,7 +27,6 @@ class Step9ProcessingUseCase(
     companion object {
         private const val POLL_INTERVAL_MS = 5_000L
         private const val MAX_POLL_COUNT = 12
-        private val ALLOWED_CATEGORIES = setOf("work", "study", "life", "emotion", "health")
         private fun createAudioApi(): AudioApi {
             return if (BuildConfig.XFYUN_USE_MOCK) {
                 MockAudioApi()
@@ -40,6 +41,7 @@ class Step9ProcessingUseCase(
     }
 
     private val db = AppDatabase.getInstance(context.applicationContext)
+    private val diaryAssemblyUseCase = DiaryAssemblyUseCase(context.applicationContext)
     private val apiName = audioApi::class.simpleName ?: "UnknownAudioApi"
 
     suspend fun run(entryId: String) {
@@ -96,34 +98,10 @@ class Step9ProcessingUseCase(
                 return
             }
 
-            // Temporary AI placeholder: Step 9 only validates ASR. Category, tags, and polished article
-            // will be replaced by a later AI classification/tagging/polishing step.
-            val finalCategory = normalizeCategory(null)
-            val finalTags = normalizeTags(emptyList()).joinToString(",")
-            val finalPolished = finalTranscript
-
             withContext(Dispatchers.IO) {
-                val updated = db.diaryEntryDao().findById(entryId) ?: return@withContext
-                val now = toIso8601Utc(nowUtcMillis())
-                db.diaryEntryDao().upsert(
-                    updated.copy(
-                        rawTranscript = finalTranscript,
-                        primaryCategoryId = finalCategory,
-                        dynamicTags = finalTags,
-                        polishedArticle = finalPolished,
-                        processingStatus = DiaryProcessingStatus.ProcessedSucceeded,
-                        updatedAt = now
-                    )
-                )
-                db.syncStateDao().findById(updated.syncStateId)?.let { sync ->
-                    db.syncStateDao().upsert(
-                        sync.copy(
-                            syncStatus = DiaryProcessingStatus.ProcessedSucceeded,
-                            lastErrorCode = null,
-                            lastErrorMessage = null,
-                            updatedAt = now
-                        )
-                    )
+                when (val result = diaryAssemblyUseCase.assembleAndSave(entryId = entryId, transcript = finalTranscript)) {
+                    is DiaryAssemblyResult.Saved -> Unit
+                    is DiaryAssemblyResult.Failed -> markFailed(entryId, result.code, result.message)
                 }
             }
         }.onFailure { ex ->
@@ -266,19 +244,6 @@ class Step9ProcessingUseCase(
                 updatedAt = now
             )
         )
-    }
-
-    private fun normalizeCategory(category: String?): String {
-        val c = category?.trim()?.lowercase() ?: "life"
-        return if (c in ALLOWED_CATEGORIES) c else "life"
-    }
-
-    private fun normalizeTags(tags: List<String>?): List<String> {
-        return tags.orEmpty()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .take(5)
     }
 
 }

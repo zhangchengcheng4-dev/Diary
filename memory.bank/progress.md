@@ -114,3 +114,19 @@
   - Blocked by current execution environment network timeout while downloading Gradle distribution (`gradle-8.7-bin.zip`).
   - Mitigation in project: `gradle/wrapper/gradle-wrapper.properties` `networkTimeout` set to `60000`.
 - Current status: `Implemented (Pending compile verification on machine with stable Gradle download access)`.
+
+### Step 10
+- Added independent Step 10 file: `STEP10_DIARY_ASSEMBLY_SAVE_SIGNOFF.md`.
+- 2026-05-09 implementation completed:
+  - Added local `DiaryAssemblyUseCase` as the Step 10 diary assembly/save boundary.
+  - Moved successful transcript persistence out of `Step9ProcessingUseCase` and into the Step 10 use case.
+  - Kept `XfyunAudioApi` and the Step 9 ASR upload/job polling path unchanged.
+  - Enforced empty transcript guard before success.
+  - Normalized category using the Step 5/9 set (`work`, `study`, `life`, `emotion`, `health`) with `life` fallback.
+  - Normalized tags by trimming, dropping blanks, removing duplicates, and keeping max 5.
+  - Kept `polishedArticle = transcript` as a Temporary AI placeholder.
+  - Kept remote diary save as contract-only; no real backend integration was added.
+- Validation target:
+  - Compile check passed: `:app:compileDebugKotlin`.
+  - Same-day multiple entries accepted through independent `entryId` rows, Home Room list visibility, and Detail route by `entryId`.
+- Current status: `Implemented (Compile verified, ready for same-day real-device validation)`.
