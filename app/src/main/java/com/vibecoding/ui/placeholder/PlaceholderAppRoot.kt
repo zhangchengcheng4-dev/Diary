@@ -44,41 +44,44 @@ fun PlaceholderAppRoot(
     onLogout: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val currentDestination = navController.currentBackStackEntryAsState().value?.destination
+    val showMainChrome = currentDestination?.route?.startsWith("detail/") != true
 
     Box(modifier = Modifier.background(PlaceholderColors.Background)) {
         Scaffold(
             modifier = Modifier.background(PlaceholderColors.Background),
             bottomBar = {
-                val currentDestination = navController.currentBackStackEntryAsState().value?.destination
-                NavigationBar {
-                    val leftItems = listOf(
-                        PlaceholderRoute.Home to "日记",
-                        PlaceholderRoute.Search to "搜索"
-                    )
-                    val rightItems = listOf(
-                        PlaceholderRoute.Calendar to "日历",
-                        PlaceholderRoute.Profile to "我的"
-                    )
+                if (showMainChrome) {
+                    NavigationBar {
+                        val leftItems = listOf(
+                            PlaceholderRoute.Home to "日记",
+                            PlaceholderRoute.Search to "搜索"
+                        )
+                        val rightItems = listOf(
+                            PlaceholderRoute.Calendar to "日历",
+                            PlaceholderRoute.Profile to "我的"
+                        )
 
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        leftItems.forEach { (route, title) ->
-                            NavigationBarItem(
-                                selected = currentDestination.isInTopRoute(route.route),
-                                onClick = { navController.navigate(route.route) },
-                                icon = { Text("•") },
-                                label = { Text(title) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Box(modifier = Modifier.weight(1f))
-                        rightItems.forEach { (route, title) ->
-                            NavigationBarItem(
-                                selected = currentDestination.isInTopRoute(route.route),
-                                onClick = { navController.navigate(route.route) },
-                                icon = { Text("•") },
-                                label = { Text(title) },
-                                modifier = Modifier.weight(1f)
-                            )
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            leftItems.forEach { (route, title) ->
+                                NavigationBarItem(
+                                    selected = currentDestination.isInTopRoute(route.route),
+                                    onClick = { navController.navigate(route.route) },
+                                    icon = { Text("•") },
+                                    label = { Text(title) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f))
+                            rightItems.forEach { (route, title) ->
+                                NavigationBarItem(
+                                    selected = currentDestination.isInTopRoute(route.route),
+                                    onClick = { navController.navigate(route.route) },
+                                    icon = { Text("•") },
+                                    label = { Text(title) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -91,7 +94,16 @@ fun PlaceholderAppRoot(
             ) {
                 composable(PlaceholderRoute.Home.route) {
                     DiaryListDbScreen(
-                        onDiaryClick = { id -> navController.navigate(PlaceholderRoute.Detail.withId(id)) }
+                        onDiaryClick = { id, status ->
+                            if (status == com.vibecoding.data.local.DiaryProcessingStatus.ProcessedFailed ||
+                                status == com.vibecoding.data.local.DiaryProcessingStatus.RecordedPendingUpload ||
+                                status == com.vibecoding.data.local.DiaryProcessingStatus.Processing
+                            ) {
+                                navController.navigate(PlaceholderRoute.Processing.withEntryId(id))
+                            } else {
+                                navController.navigate(PlaceholderRoute.Detail.withId(id))
+                            }
+                        }
                     )
                 }
                 composable(PlaceholderRoute.Record.route) {
@@ -117,7 +129,11 @@ fun PlaceholderAppRoot(
                 ) { backStack ->
                     val id = backStack.arguments?.getString("id").orEmpty()
                     if (id.matches(Regex("^[0-9a-fA-F-]{36}$"))) {
-                        DiaryDetailDbScreen(entryId = id)
+                        DiaryDetailDbScreen(
+                            entryId = id,
+                            onBack = { navController.popBackStack() },
+                            onRetryProcessing = { navController.navigate(PlaceholderRoute.Processing.withEntryId(id)) }
+                        )
                     } else {
                         val diary = MockData.diaries.firstOrNull { it.id == id } ?: MockData.diaries.first()
                         DiaryDetailScreen(diary = diary)
@@ -140,21 +156,23 @@ fun PlaceholderAppRoot(
             }
         }
 
-        FloatingActionButton(
-            onClick = { navController.navigate(PlaceholderRoute.Record.route) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .offset(y = (-24).dp)
-                .size(68.dp)
-                .clip(CircleShape),
-            shape = CircleShape,
-            containerColor = PlaceholderColors.Accent
-        ) {
-            Text(
-                text = "麦克风",
-                color = PlaceholderColors.Background
-            )
+        if (showMainChrome) {
+            FloatingActionButton(
+                onClick = { navController.navigate(PlaceholderRoute.Record.route) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .offset(y = (-24).dp)
+                    .size(68.dp)
+                    .clip(CircleShape),
+                shape = CircleShape,
+                containerColor = PlaceholderColors.Accent
+            ) {
+                Text(
+                    text = "麦克风",
+                    color = PlaceholderColors.Background
+                )
+            }
         }
     }
 }

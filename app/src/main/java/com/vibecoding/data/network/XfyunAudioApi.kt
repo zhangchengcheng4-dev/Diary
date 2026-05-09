@@ -47,6 +47,8 @@ class XfyunAudioApi(
         private const val WS_URL = "wss://$WS_HOST$WS_PATH"
         private const val TARGET_SAMPLE_RATE = 16_000
         private const val MAX_DURATION_SECONDS = 60
+        private const val CHUNK_DURATION_SECONDS = 55
+        private const val PCM_BYTES_PER_SECOND = TARGET_SAMPLE_RATE * 2
         private const val FRAME_BYTES = 1280
         private const val FRAME_INTERVAL_MS = 40L
         private const val WAIT_RESULT_TIMEOUT_MS = 15_000L
@@ -63,19 +65,24 @@ class XfyunAudioApi(
         val file = File(request.fileName)
         if (!file.exists() || file.length() <= 0L) return envelopeError("XFYUN_FILE_NOT_FOUND", "Audio file not found: ${request.fileName}")
         if (appId.isBlank() || apiKey.isBlank() || apiSecret.isBlank()) return envelopeError("XFYUN_CONFIG_MISSING", "WebSocket appId/apiKey/apiSecret missing")
-        if (request.durationSeconds > MAX_DURATION_SECONDS) return envelopeError("XFYUN_DURATION_EXCEEDED", "当前版本建议录音控制在 60 秒以内")
-
         val pcmBytes = runCatching { decodeToPcm16kMono(file) }.getOrElse {
             Log.e("XfyunAudioApi", "audio decode failed", it)
             return envelopeError("XFYUN_PCM_DECODE_FAILED", "音频转PCM失败: ${it.message}")
         }
         Log.i("XfyunAudioApi", "pcm ready bytes=${pcmBytes.size} from=${file.name}")
 
-        val session = runWsAsr(pcmBytes) ?: return envelopeError("XFYUN_WS_FAILED", "WebSocket listen failed")
-        if (session.errorCode != 0) return envelopeError("XFYUN_WS_${session.errorCode}", session.errorMessage.ifBlank { "WebSocket ASR failed" })
+        val transcriptParts = mutableListOf<String>()
+        val chunks = splitPcmChunks(pcmBytes)
+        for ((index, chunk) in chunks.withIndex()) {
+            Log.i("XfyunAudioApi", "ws chunk start ${index + 1}/${chunks.size} bytes=${chunk.size}")
+            val session = runWsAsr(chunk) ?: return envelopeError("XFYUN_WS_FAILED", "WebSocket listen failed")
+            if (session.errorCode != 0) return envelopeError("XFYUN_WS_${session.errorCode}", session.errorMessage.ifBlank { "WebSocket ASR failed" })
+            val chunkTranscript = session.transcriptBuilder.toString().trim()
+            if (chunkTranscript.isNotBlank()) transcriptParts += chunkTranscript
+        }
 
-        val transcript = session.transcriptBuilder.toString().trim()
-        if (transcript.isBlank()) return envelopeError("XFYUN_EMPTY_TRANSCRIPT", "WebSocket returned success but transcript is empty; msgCount=${session.receivedMessageCount}, wordCount=${session.parsedWordCount}")
+        val transcript = transcriptParts.joinToString(separator = "\n").trim()
+        if (transcript.isBlank()) return envelopeError("XFYUN_EMPTY_TRANSCRIPT", "WebSocket returned success but transcript is empty")
 
         val jobId = "xfyun-ws-${UUID.randomUUID()}"
         wsResults[jobId] = ApiEnvelope(
@@ -147,7 +154,7 @@ class XfyunAudioApi(
                 if (code != 0) {
                     wsResult.errorCode = code
                     wsResult.errorMessage = json.optString("message", "xfyun ws error")
-                    Log.e("XfyunAudioApi", "ws error json=$text")
+                    Log.e("XfyunAudioApi", "ws error code=$code message=${wsResult.errorMessage}")
                     return
                 }
 
@@ -155,7 +162,7 @@ class XfyunAudioApi(
                 val result = data?.optJSONObject("result")
                 val ws = result?.optJSONArray("ws")
                 if (ws == null) {
-                    Log.w("XfyunAudioApi", "ws result missing data=${data?.toString()}")
+                    Log.w("XfyunAudioApi", "ws result missing words status=${data?.optInt("status", -1)}")
                 } else {
                     val sn = result.optInt("sn", -1)
                     val pgs = result.optString("pgs", "")
@@ -243,6 +250,19 @@ class XfyunAudioApi(
             Thread.sleep(FRAME_INTERVAL_MS)
         }
         Log.i("XfyunAudioApi", "ws frame summary total=$frameNo hasStatus0=$hasStatus0")
+    }
+
+    private fun splitPcmChunks(pcmBytes: ByteArray): List<ByteArray> {
+        val maxBytes = PCM_BYTES_PER_SECOND * CHUNK_DURATION_SECONDS
+        if (pcmBytes.size <= maxBytes) return listOf(pcmBytes)
+        val chunks = mutableListOf<ByteArray>()
+        var offset = 0
+        while (offset < pcmBytes.size) {
+            val end = minOf(offset + maxBytes, pcmBytes.size)
+            chunks += pcmBytes.copyOfRange(offset, end)
+            offset = end
+        }
+        return chunks
     }
 
     private fun decodeToPcm16kMono(file: File): ByteArray {

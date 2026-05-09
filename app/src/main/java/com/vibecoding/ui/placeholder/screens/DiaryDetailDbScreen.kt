@@ -1,32 +1,70 @@
 package com.vibecoding.ui.placeholder.screens
 
 import android.content.Context
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibecoding.app.BuildConfig
+import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
-fun DiaryDetailDbScreen(entryId: String) {
+fun DiaryDetailDbScreen(
+    entryId: String,
+    onBack: () -> Unit,
+    onRetryProcessing: () -> Unit = {}
+) {
     val context = LocalContext.current.applicationContext
     val vm: DiaryDetailDbViewModel = viewModel(factory = DiaryDetailDbViewModelFactory(context, entryId))
     val state by vm.uiState.collectAsState(initial = DiaryDetailDbUiState())
@@ -35,45 +73,334 @@ fun DiaryDetailDbScreen(entryId: String) {
         modifier = Modifier
             .fillMaxSize()
             .background(PlaceholderColors.Background)
-            .padding(top = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("真实详情", color = PlaceholderColors.PrimaryText)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("状态: ${state.processingStatus}", color = PlaceholderColors.SecondaryText)
-                Text("分类: ${state.category}", color = PlaceholderColors.SecondaryText)
-                Text("标签: ${state.tags}", color = PlaceholderColors.SecondaryText)
+        DetailTopBar(onBack = onBack)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item { SummaryCard(state = state) }
+            if (DiaryProcessingStatus.canRetry(state.processingStatus) || DiaryProcessingStatus.needsProcessing(state.processingStatus)) {
+                item { ProcessingActionCard(state.processingStatus, onRetryProcessing) }
             }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("Transcript", color = PlaceholderColors.PrimaryText)
-                Spacer(modifier = Modifier.height(8.dp))
-                SelectionContainer {
-                    Text(state.transcript.ifBlank { "暂无转写结果" }, color = PlaceholderColors.SecondaryText)
-                }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("Polished Article", color = PlaceholderColors.PrimaryText)
-                Spacer(modifier = Modifier.height(8.dp))
-                SelectionContainer {
-                    Text(state.polishedArticle.ifBlank { "暂无正文" }, color = PlaceholderColors.SecondaryText)
-                }
+            item { AudioPlayerCard(audio = state.audio) }
+            item { TranscriptCard(transcript = state.transcript) }
+            item { PolishedArticleCard(transcript = state.transcript, polishedArticle = state.polishedArticle) }
+            item { TagsCard(category = state.category, tags = state.tags) }
+            item { NoteCard() }
+            if (BuildConfig.DEBUG) {
+                item { DebugInfoCard(state = state) }
             }
         }
     }
 }
 
+@Composable
+private fun ProcessingActionCard(status: String, onRetryProcessing: () -> Unit) {
+    SoftCard {
+        Text(
+            text = if (DiaryProcessingStatus.canRetry(status)) "转写失败" else "转写未完成",
+            color = PlaceholderColors.PrimaryText,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onRetryProcessing, modifier = Modifier.fillMaxWidth()) {
+            Text(if (DiaryProcessingStatus.canRetry(status)) "重试处理" else "查看处理进度")
+        }
+    }
+}
+
+@Composable
+private fun DetailTopBar(onBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PlaceholderColors.Background)
+            .padding(horizontal = 8.dp, vertical = 10.dp)
+    ) {
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Text("返回", color = PlaceholderColors.Accent)
+        }
+        Text(
+            text = "日记详情",
+            color = PlaceholderColors.PrimaryText,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+private fun SummaryCard(state: DiaryDetailDbUiState) {
+    SoftCard {
+        Text(
+            text = state.title,
+            color = PlaceholderColors.PrimaryText,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(state.displayTime, color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+        Chip(text = state.category.ifBlank { "life" })
+    }
+}
+
+@Composable
+private fun AudioPlayerCard(audio: AudioUiState?) {
+    SoftCard {
+        Text("录音", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(12.dp))
+        if (audio == null || audio.playableSegments.isEmpty()) {
+            Text("暂无可播放的录音文件", color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
+            return@SoftCard
+        }
+
+        var player by remember(audio.playlistKey) { mutableStateOf<MediaPlayer?>(null) }
+        var isPlaying by remember(audio.playlistKey) { mutableStateOf(false) }
+        var progress by remember(audio.playlistKey) { mutableFloatStateOf(0f) }
+        var currentMs by remember(audio.playlistKey) { mutableStateOf(0L) }
+        var currentSegmentIndex by remember(audio.playlistKey) { mutableIntStateOf(0) }
+
+        fun releasePlayer() {
+            player?.release()
+            player = null
+        }
+
+        lateinit var startSegment: (Int) -> Unit
+        startSegment = { index ->
+            releasePlayer()
+            val segment = audio.playableSegments.getOrNull(index)
+            if (segment == null) {
+                isPlaying = false
+                currentSegmentIndex = 0
+                currentMs = 0L
+                progress = 0f
+            } else {
+                currentSegmentIndex = index
+                player = MediaPlayer().apply {
+                    setDataSource(segment.path)
+                    prepare()
+                    setOnCompletionListener {
+                        val nextIndex = index + 1
+                        if (nextIndex < audio.playableSegments.size) {
+                            startSegment(nextIndex)
+                        } else {
+                            releasePlayer()
+                            isPlaying = false
+                            currentSegmentIndex = 0
+                            currentMs = 0L
+                            progress = 0f
+                        }
+                    }
+                    start()
+                }
+                isPlaying = true
+            }
+        }
+
+        DisposableEffect(audio.playlistKey) {
+            onDispose {
+                releasePlayer()
+            }
+        }
+
+        LaunchedEffect(isPlaying, player, currentSegmentIndex) {
+            while (isPlaying) {
+                val elapsedBeforeCurrent = audio.playableSegments
+                    .take(currentSegmentIndex)
+                    .sumOf { it.durationMs }
+                currentMs = elapsedBeforeCurrent + (player?.currentPosition?.toLong() ?: 0L)
+                progress = (currentMs.toFloat() / audio.totalDurationMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+                delay(300)
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                onClick = {
+                    val current = player
+                    if (current?.isPlaying == true) {
+                        current.pause()
+                        isPlaying = false
+                    } else if (current != null) {
+                        current.start()
+                        isPlaying = true
+                    } else {
+                        startSegment(currentSegmentIndex)
+                    }
+                },
+                modifier = Modifier.size(width = 82.dp, height = 42.dp)
+            ) {
+                Text(if (isPlaying) "暂停" else "播放")
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlaceholderColors.Accent
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${formatDuration(currentMs)} / ${formatDuration(audio.totalDurationMs)}",
+                    color = PlaceholderColors.SecondaryText,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Chip(text = "1.0x")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "共 ${audio.playableSegments.size} 段录音，将按录制顺序连续播放。波形展示 TODO",
+            color = PlaceholderColors.SecondaryText,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun TranscriptCard(transcript: String) {
+    val clipboard = LocalClipboardManager.current
+    SoftCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("转写文本", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = { clipboard.setText(AnnotatedString(transcript)) }) {
+                Text("复制", color = PlaceholderColors.Accent)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        SelectionContainer {
+            Text(
+                text = transcript.ifBlank { "暂无转写文本" },
+                color = PlaceholderColors.PrimaryText,
+                fontSize = 15.sp,
+                lineHeight = 23.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun PolishedArticleCard(transcript: String, polishedArticle: String) {
+    val content = polishedArticle.ifBlank { transcript }
+    SoftCard {
+        Text("润色文章", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text("AI 润色功能开发中，当前先展示转写内容。", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+        Spacer(modifier = Modifier.height(10.dp))
+        SelectionContainer {
+            Text(
+                text = content.ifBlank { "暂无内容" },
+                color = PlaceholderColors.PrimaryText,
+                fontSize = 15.sp,
+                lineHeight = 23.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun TagsCard(category: String, tags: List<String>) {
+    SoftCard {
+        Text("标签", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Chip(text = category.ifBlank { "life" })
+            if (tags.isEmpty()) {
+                Text("暂无标签", color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
+            } else {
+                tags.forEach { Chip(text = it) }
+            }
+            TextButton(onClick = { /* TODO: add tag editing */ }) {
+                Text("+", color = PlaceholderColors.Accent, fontSize = 18.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoteCard() {
+    SoftCard {
+        Text("备注", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("添加备注...", color = PlaceholderColors.SecondaryText, fontSize = 14.sp)
+        Text("TODO: 后续接入编辑保存。", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun DebugInfoCard(state: DiaryDetailDbUiState) {
+    var expanded by remember { mutableStateOf(false) }
+    SoftCard {
+        TextButton(onClick = { expanded = !expanded }) {
+            Text(if (expanded) "隐藏技术信息" else "显示技术信息", color = PlaceholderColors.Accent)
+        }
+        if (expanded) {
+            Text("状态: ${state.processingStatus}", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+            Text("entryId: ${state.entryId}", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+            Text("audioAssetIds: ${state.audio?.segments.orEmpty().joinToString { it.audioAssetId }}", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+            Text("processing status: ${state.processingStatus}", color = PlaceholderColors.SecondaryText, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SoftCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = PlaceholderColors.Surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), content = content)
+    }
+}
+
+@Composable
+private fun Chip(text: String) {
+    Text(
+        text = text,
+        color = PlaceholderColors.SecondaryText,
+        fontSize = 12.sp,
+        modifier = Modifier
+            .background(PlaceholderColors.TagBackground, RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    )
+}
+
+data class AudioSegmentUiState(
+    val audioAssetId: String,
+    val path: String,
+    val durationMs: Long,
+    val exists: Boolean
+)
+
+data class AudioUiState(
+    val segments: List<AudioSegmentUiState>
+) {
+    val playableSegments: List<AudioSegmentUiState> = segments.filter { it.exists }
+    val totalDurationMs: Long = playableSegments.sumOf { it.durationMs }
+    val playlistKey: String = playableSegments.joinToString("|") { "${it.audioAssetId}:${it.path}" }
+}
+
 data class DiaryDetailDbUiState(
+    val entryId: String = "",
+    val title: String = "语音日记",
+    val displayTime: String = "",
     val processingStatus: String = "loading",
     val category: String = "",
-    val tags: String = "",
+    val tags: List<String> = emptyList(),
     val transcript: String = "",
-    val polishedArticle: String = ""
+    val polishedArticle: String = "",
+    val audio: AudioUiState? = null
 )
 
 class DiaryDetailDbViewModel(
@@ -85,13 +412,54 @@ class DiaryDetailDbViewModel(
         if (entry == null) {
             DiaryDetailDbUiState(processingStatus = "entry_not_found")
         } else {
+            val audioAssets = db.audioAssetDao().findAllByEntryId(entry.entryId)
+            val transcript = entry.rawTranscript
+            val article = entry.polishedArticle.ifBlank { transcript }
             DiaryDetailDbUiState(
+                entryId = entry.entryId,
+                title = buildTitle(transcript, article, entry.title),
+                displayTime = formatDateTime(entry.entryOccurredAt.ifBlank { entry.createdAt }),
                 processingStatus = entry.processingStatus,
                 category = entry.primaryCategoryId,
-                tags = entry.dynamicTags,
-                transcript = entry.rawTranscript,
-                polishedArticle = entry.polishedArticle
+                tags = entry.dynamicTags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+                transcript = transcript,
+                polishedArticle = article,
+                audio = AudioUiState(
+                    segments = audioAssets.map {
+                        AudioSegmentUiState(
+                            audioAssetId = it.audioAssetId,
+                            path = it.localPath,
+                            durationMs = it.durationMs,
+                            exists = File(it.localPath).exists()
+                        )
+                    }
+                )
             )
+        }
+    }
+
+    private fun buildTitle(transcript: String, article: String, storedTitle: String): String {
+        val source = transcript.ifBlank { article }
+        val firstSentence = source
+            .split("。", "！", "？", ".", "!", "?")
+            .firstOrNull()
+            .orEmpty()
+            .trim()
+        return firstSentence.take(20).ifBlank {
+            storedTitle.takeIf { it.isNotBlank() && it != "Voice Draft" } ?: "语音日记"
+        }
+    }
+
+    private fun formatDateTime(value: String): String {
+        val zone = ZoneId.systemDefault()
+        return runCatching {
+            Instant.parse(value)
+                .atZone(zone)
+                .format(DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm", Locale.CHINA))
+        }.getOrElse {
+            runCatching {
+                LocalDate.parse(value).format(DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.CHINA))
+            }.getOrElse { value }
         }
     }
 }
@@ -102,6 +470,13 @@ class DiaryDetailDbViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return DiaryDetailDbViewModel(context, entryId) as T
+        return DiaryDetailDbViewModel(context.applicationContext, entryId) as T
     }
+}
+
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d".format(minutes, seconds)
 }

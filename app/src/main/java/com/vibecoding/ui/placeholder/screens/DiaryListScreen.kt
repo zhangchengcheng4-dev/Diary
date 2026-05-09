@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.recording.RecordingRepository
 import com.vibecoding.ui.placeholder.model.DiaryUiModel
@@ -40,7 +41,7 @@ import java.util.Locale
 
 @Composable
 fun DiaryListDbScreen(
-    onDiaryClick: (String) -> Unit
+    onDiaryClick: (String, String) -> Unit
 ) {
     val context = LocalContext.current.applicationContext
     val vm: DiaryListDbViewModel = viewModel(factory = DiaryListDbViewModelFactory(context))
@@ -55,10 +56,11 @@ fun DiaryListDbScreen(
 @Composable
 fun DiaryListScreen(
     diaries: List<DiaryUiModel>,
+    todayText: String = formatTodayText(),
     selectedTag: String = "All",
     filterTags: List<String> = listOf("All", "Mood", "Food", "Work", "Sports"),
     onTagSelect: (String) -> Unit = {},
-    onDiaryClick: (String) -> Unit
+    onDiaryClick: (String, String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -68,7 +70,7 @@ fun DiaryListScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "今天 · 5月2日",
+            text = todayText,
             color = PlaceholderColors.SecondaryText,
             fontSize = 13.sp
         )
@@ -81,7 +83,7 @@ fun DiaryListScreen(
         Spacer(modifier = Modifier.height(14.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(diaries) { diary ->
-                CozyDiaryCard(diary = diary, onClick = { onDiaryClick(diary.id) })
+                CozyDiaryCard(diary = diary, onClick = { onDiaryClick(diary.id, diary.processingStatus) })
             }
             item { Spacer(modifier = Modifier.height(88.dp)) }
         }
@@ -180,9 +182,9 @@ class DiaryListDbViewModel(
                 val article = entry.polishedArticle.ifBlank { entry.rawTranscript }
                 val preview = article.ifBlank {
                     when (entry.processingStatus) {
-                        "draft_recording" -> "录音草稿"
-                        "recorded_pending_upload", "processing" -> "正在转写..."
-                        "processed_failed" -> "转写失败，请进入处理页重试"
+                        DiaryProcessingStatus.DraftRecording -> "录音草稿"
+                        DiaryProcessingStatus.RecordedPendingUpload, DiaryProcessingStatus.Processing -> "正在转写..."
+                        DiaryProcessingStatus.ProcessedFailed -> "转写失败，请进入处理页重试"
                         else -> "暂无内容"
                     }
                 }
@@ -196,16 +198,23 @@ class DiaryListDbViewModel(
                     tags = entry.dynamicTags
                         .split(",")
                         .map { it.trim() }
-                        .filter { it.isNotEmpty() }
+                        .filter { it.isNotEmpty() },
+                    processingStatus = entry.processingStatus
                 )
             }
         }
 
     private fun formatDateText(value: String): String {
-        return runCatching {
-            LocalDate.parse(value).format(DateTimeFormatter.ofPattern("M月d日 E", Locale.CHINA))
-        }.getOrElse { value }
+        return formatLocalDateText(value)
     }
+}
+
+private fun formatTodayText(): String = "今天 · ${formatLocalDateText(LocalDate.now().toString())}"
+
+private fun formatLocalDateText(value: String): String {
+    return runCatching {
+        LocalDate.parse(value).format(DateTimeFormatter.ofPattern("M月d日 E", Locale.CHINA))
+    }.getOrElse { value }
 }
 
 class DiaryListDbViewModelFactory(

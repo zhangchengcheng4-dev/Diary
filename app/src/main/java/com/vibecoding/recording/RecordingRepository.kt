@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import com.vibecoding.auth.util.nowUtcMillis
 import com.vibecoding.auth.util.toIso8601Utc
+import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.data.local.entity.AudioAssetEntity
 import com.vibecoding.data.local.entity.DiaryEntryEntity
@@ -39,7 +40,7 @@ class RecordingRepository(
                 polishedArticle = "",
                 primaryCategoryId = "life",
                 dynamicTags = "",
-                processingStatus = "draft_recording",
+                processingStatus = DiaryProcessingStatus.DraftRecording,
                 audioAssetId = "",
                 syncStateId = syncStateId,
                 createdAt = now,
@@ -98,7 +99,7 @@ class RecordingRepository(
         val existing = db.diaryEntryDao().findById(entryId) ?: error("Draft entry not found: $entryId")
         db.diaryEntryDao().upsert(
             existing.copy(
-                processingStatus = "recorded_pending_upload",
+                processingStatus = DiaryProcessingStatus.RecordedPendingUpload,
                 audioAssetId = primaryAudioAssetId,
                 updatedAt = now
             )
@@ -157,7 +158,7 @@ class RecordingRepository(
                 polishedArticle = "",
                 primaryCategoryId = "life",
                 dynamicTags = "",
-                processingStatus = "recorded_pending_upload",
+                processingStatus = DiaryProcessingStatus.RecordedPendingUpload,
                     audioAssetId = audioAssetId,
                     syncStateId = syncStateId,
                     createdAt = now,
@@ -199,7 +200,7 @@ class RecordingRepository(
             )
         }
 
-        val draftEntries = db.diaryEntryDao().findByProcessingStatus("draft_recording")
+        val draftEntries = db.diaryEntryDao().findByProcessingStatus(DiaryProcessingStatus.DraftRecording)
         draftEntries.forEach { draft ->
             val assets = db.audioAssetDao().findAllByEntryId(draft.entryId)
             val hasValidFile = assets.any { asset ->

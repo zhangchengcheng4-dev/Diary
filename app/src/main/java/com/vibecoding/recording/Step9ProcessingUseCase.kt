@@ -4,6 +4,7 @@ import android.content.Context
 import com.vibecoding.auth.util.nowUtcMillis
 import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.app.BuildConfig
+import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.data.local.entity.SyncStateEntity
 import com.vibecoding.data.network.AudioApi
@@ -110,16 +111,16 @@ class Step9ProcessingUseCase(
                         primaryCategoryId = finalCategory,
                         dynamicTags = finalTags,
                         polishedArticle = finalPolished,
-                        processingStatus = "processed_succeeded",
+                        processingStatus = DiaryProcessingStatus.ProcessedSucceeded,
                         updatedAt = now
                     )
                 )
                 db.syncStateDao().findById(updated.syncStateId)?.let { sync ->
                     db.syncStateDao().upsert(
                         sync.copy(
-                            syncStatus = "processed_succeeded",
+                            syncStatus = DiaryProcessingStatus.ProcessedSucceeded,
                             lastErrorCode = null,
-                            lastErrorMessage = "Step9 ASR success api=$apiName transcriptLength=${finalTranscript.length}",
+                            lastErrorMessage = null,
                             updatedAt = now
                         )
                     )
@@ -127,7 +128,7 @@ class Step9ProcessingUseCase(
             }
         }.onFailure { ex ->
             withContext(Dispatchers.IO) {
-                markFailed(entryId, "STEP9_EXCEPTION", ex.stackTraceToString().take(1200))
+                markFailed(entryId, "STEP9_EXCEPTION", "${ex::class.simpleName}: ${ex.message.orEmpty()}".take(240))
             }
         }
     }
@@ -210,14 +211,14 @@ class Step9ProcessingUseCase(
     private suspend fun markFailed(entryId: String, code: String, message: String) {
         val entry = db.diaryEntryDao().findById(entryId) ?: return
         val now = toIso8601Utc(nowUtcMillis())
-        db.diaryEntryDao().upsert(entry.copy(processingStatus = "processed_failed", updatedAt = now))
+        db.diaryEntryDao().upsert(entry.copy(processingStatus = DiaryProcessingStatus.ProcessedFailed, updatedAt = now))
         val sync = db.syncStateDao().findById(entry.syncStateId) ?: run {
             SyncStateEntity(
                 syncStateId = if (entry.syncStateId.isBlank()) UUID.randomUUID().toString() else entry.syncStateId,
                 entityType = "DiaryEntry",
                 entityId = entry.entryId,
                 userId = entry.userId,
-                syncStatus = "processed_failed",
+                syncStatus = DiaryProcessingStatus.ProcessedFailed,
                 retryCount = 0,
                 lastErrorCode = null,
                 lastErrorMessage = null,
@@ -229,7 +230,7 @@ class Step9ProcessingUseCase(
         }
         db.syncStateDao().upsert(
             sync.copy(
-                syncStatus = "processed_failed",
+                syncStatus = DiaryProcessingStatus.ProcessedFailed,
                 retryCount = sync.retryCount + 1,
                 lastErrorCode = code,
                 lastErrorMessage = message,
@@ -240,6 +241,7 @@ class Step9ProcessingUseCase(
     }
 
     private suspend fun writeDebug(entryId: String, message: String) {
+        if (!BuildConfig.DEBUG) return
         val entry = db.diaryEntryDao().findById(entryId) ?: return
         val now = toIso8601Utc(nowUtcMillis())
         val sync = db.syncStateDao().findById(entry.syncStateId) ?: run {

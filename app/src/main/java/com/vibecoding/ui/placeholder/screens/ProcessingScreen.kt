@@ -25,6 +25,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibecoding.data.local.DiaryProcessingStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.recording.Step9ProcessingUseCase
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
@@ -58,7 +59,7 @@ fun ProcessingScreen(
         item { StatusCard("状态", state.status.ifBlank { "unknown" }) }
         item { StatusCard("错误", state.errorMessage ?: "无") }
         item { StatusCard("Transcript", state.transcript.ifBlank { "等待转写结果..." }) }
-        if (state.status == "processed_succeeded") {
+        if (state.status == DiaryProcessingStatus.ProcessedSucceeded) {
             item {
                 Button(
                     onClick = onDone,
@@ -68,7 +69,7 @@ fun ProcessingScreen(
                 }
             }
         }
-        if (state.status == "processed_failed") {
+        if (state.status == DiaryProcessingStatus.ProcessedFailed) {
             item {
                 Button(
                     onClick = vm::retry,
@@ -125,7 +126,7 @@ class ProcessingViewModel(
     init {
         viewModelScope.launch {
             val entry = appDb.diaryEntryDao().findById(entryId) ?: return@launch
-            if (entry.processingStatus == "recorded_pending_upload" || entry.processingStatus == "processing") {
+            if (DiaryProcessingStatus.needsProcessing(entry.processingStatus)) {
                 useCase.run(entryId)
             }
         }

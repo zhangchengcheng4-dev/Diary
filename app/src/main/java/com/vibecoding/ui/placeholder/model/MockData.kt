@@ -6,7 +6,8 @@ data class DiaryUiModel(
     val preview: String,
     val dateText: String,
     val category: String,
-    val tags: List<String>
+    val tags: List<String>,
+    val processingStatus: String = ""
 )
 
 object MockData {

@@ -18,7 +18,7 @@ interface AudioAssetDao {
     @Query("SELECT * FROM audio_assets WHERE entryId = :entryId LIMIT 1")
     suspend fun findByEntryId(entryId: String): AudioAssetEntity?
 
-    @Query("SELECT * FROM audio_assets WHERE entryId = :entryId ORDER BY createdAt ASC")
+    @Query("SELECT * FROM audio_assets WHERE entryId = :entryId ORDER BY localPath ASC")
     suspend fun findAllByEntryId(entryId: String): List<AudioAssetEntity>
 
     @Query("SELECT * FROM audio_assets")
