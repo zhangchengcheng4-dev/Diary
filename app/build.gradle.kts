@@ -1,20 +1,35 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
 }
 
+import java.util.Properties
+
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val xfyunAppId = localProps.getProperty("xfyun.appId", "")
+val xfyunApiKey = localProps.getProperty("xfyun.apiKey", "")
+val xfyunApiSecret = localProps.getProperty("xfyun.apiSecret", "")
+val xfyunUseMock = localProps.getProperty("xfyun.useMock", "false")
+
 android {
     namespace = "com.vibecoding.app"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "com.vibecoding.app"
         minSdk = 23
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
+        buildConfigField("String", "XFYUN_APP_ID", "\"$xfyunAppId\"")
+        buildConfigField("String", "XFYUN_API_KEY", "\"$xfyunApiKey\"")
+        buildConfigField("String", "XFYUN_API_SECRET", "\"$xfyunApiSecret\"")
+        buildConfigField("boolean", "XFYUN_USE_MOCK", xfyunUseMock)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -71,6 +86,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")

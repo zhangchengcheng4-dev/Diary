@@ -3,7 +3,9 @@
 sealed class PlaceholderRoute(val route: String) {
     data object Home : PlaceholderRoute("home")
     data object Record : PlaceholderRoute("record")
-    data object Processing : PlaceholderRoute("processing")
+    data object Processing : PlaceholderRoute("processing/{entryId}") {
+        fun withEntryId(entryId: String): String = "processing/$entryId"
+    }
     data object Detail : PlaceholderRoute("detail/{id}") {
         fun withId(id: String): String = "detail/$id"
     }

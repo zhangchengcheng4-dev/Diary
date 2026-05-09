@@ -1,4 +1,4 @@
-# Step 7 - Authentication Baseline Sign-off
+﻿# Step 7 - Authentication Baseline Sign-off
 
 ## Goal
 Implement MVP authentication baseline with `email+password`, secure session persistence, startup session validation, and logout flow.
@@ -6,8 +6,8 @@ Implement MVP authentication baseline with `email+password`, secure session pers
 ## Decisions (Confirmed 2026-05-03)
 1. API placeholders:
    - `baseUrl`: dev/staging placeholder
-   - login path: `/login`
-   - register path: `/register`
+   - login path: `/v1/auth/login`
+   - register path: `/v1/auth/register`
 2. Auth response fields:
    - `sessionToken`
    - `sessionExpiresAt` (ISO-8601)
@@ -64,4 +64,5 @@ Implement MVP authentication baseline with `email+password`, secure session pers
 - Backend: `Confirmed`
 - Date: `2026-05-03`
 - Final Result: `Step 7 Implemented (Build Verification Blocked by Local JAVA_HOME)`
+
 

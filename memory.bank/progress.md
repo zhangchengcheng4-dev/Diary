@@ -98,3 +98,19 @@
   - Added repository interfaces under `data/repository` (`AudioRepository`, `DiaryRepository`, `SyncRepository`).
   - Current scope is contract-only; real network implementation is pending.
   - Kotlin compile check passed: `:app:compileDebugKotlin`.
+
+### Step 8
+- Added independent Step 8 file: `STEP8_VOICE_RECORDING_FLOW_SIGNOFF.md`.
+- 2026-05-03 implementation completed:
+  - Added microphone permission declaration in `AndroidManifest.xml`.
+  - Replaced `RecordScreen` placeholder with real recording UI (`开始/暂停/继续/停止 + 计时`).
+  - Added recording state machine with fixed MVP user id (`mvp_local_user`) and draft-on-start behavior.
+  - Implemented segmented recording with app-specific storage (`files/recordings/`) using `MediaRecorder` (`m4a/aac`).
+  - Implemented auto-stop at `30 minutes` and draft persistence.
+  - Implemented cleanup flow on permission denial / recording failure: delete temp audio + soft-delete empty draft and related sync rows.
+  - Updated local DB support for multi-segment assets per entry (removed unique index on `audio_assets.entryId`, DAO added ordered segment query).
+- Validation:
+  - Compile attempted: `:app:compileDebugKotlin`.
+  - Blocked by current execution environment network timeout while downloading Gradle distribution (`gradle-8.7-bin.zip`).
+  - Mitigation in project: `gradle/wrapper/gradle-wrapper.properties` `networkTimeout` set to `60000`.
+- Current status: `Implemented (Pending compile verification on machine with stable Gradle download access)`.

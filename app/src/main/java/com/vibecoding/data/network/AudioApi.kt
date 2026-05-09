@@ -22,6 +22,10 @@ data class AudioJobResult(
 )
 
 interface AudioApi {
+    /**
+     * Current Step 9 implementation uses this shape as a local abstraction for third-party ASR.
+     * It does not mean audio is uploaded to a self-hosted backend yet.
+     */
     suspend fun uploadAudio(request: UploadAudioRequest): ApiEnvelope<UploadAudioResponse>
     suspend fun getAudioJob(jobId: String): ApiEnvelope<AudioJobResult>
 }

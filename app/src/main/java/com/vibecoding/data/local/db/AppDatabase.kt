@@ -13,7 +13,7 @@ import com.vibecoding.data.local.entity.SyncStateEntity
 
 @Database(
     entities = [DiaryEntryEntity::class, AudioAssetEntity::class, SyncStateEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,7 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncStateDao(): SyncStateDao
 
     companion object {
-        const val DATABASE_NAME: String = "diary_mvp.db"
+        const val DATABASE_NAME: String = "diary_mvp_v2.db"
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

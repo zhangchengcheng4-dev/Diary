@@ -13,6 +13,7 @@ data class DiaryEntryEntity(
     val rawTranscript: String,
     val polishedArticle: String,
     val primaryCategoryId: String,
+    val dynamicTags: String,
     val processingStatus: String,
     val audioAssetId: String,
     val syncStateId: String,

@@ -18,6 +18,15 @@ interface AudioAssetDao {
     @Query("SELECT * FROM audio_assets WHERE entryId = :entryId LIMIT 1")
     suspend fun findByEntryId(entryId: String): AudioAssetEntity?
 
+    @Query("SELECT * FROM audio_assets WHERE entryId = :entryId ORDER BY createdAt ASC")
+    suspend fun findAllByEntryId(entryId: String): List<AudioAssetEntity>
+
+    @Query("SELECT * FROM audio_assets")
+    suspend fun findAll(): List<AudioAssetEntity>
+
+    @Query("DELETE FROM audio_assets WHERE localPath = :localPath")
+    suspend fun deleteByLocalPath(localPath: String)
+
     @Query("DELETE FROM audio_assets WHERE entryId = :entryId")
     suspend fun deleteByEntryId(entryId: String)
 }

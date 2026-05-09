@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "audio_assets",
-    indices = [Index(value = ["entryId"], unique = true)]
+    indices = [Index(value = ["entryId"], unique = false)]
 )
 data class AudioAssetEntity(
     @PrimaryKey val audioAssetId: String,

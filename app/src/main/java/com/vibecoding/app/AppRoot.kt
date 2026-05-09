@@ -2,6 +2,7 @@ package com.vibecoding.app
 
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -13,7 +14,10 @@ import com.vibecoding.auth.ui.AuthScreen
 import com.vibecoding.auth.ui.AuthViewModel
 import com.vibecoding.auth.ui.AuthViewModelFactory
 import com.vibecoding.auth.ui.SessionBootstrapState
+import com.vibecoding.recording.RecordingRepository
 import com.vibecoding.ui.placeholder.PlaceholderAppRoot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun AppRoot() {
@@ -27,6 +31,11 @@ fun AppRoot() {
         )
     )
     val state by authViewModel.uiState.collectAsState()
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            RecordingRepository(context).recoverOrCleanupRecordingsOnAppStart()
+        }
+    }
 
     when (state.sessionState) {
         SessionBootstrapState.CHECKING -> CircularProgressIndicator()
@@ -42,4 +51,3 @@ fun AppRoot() {
         )
     }
 }
-

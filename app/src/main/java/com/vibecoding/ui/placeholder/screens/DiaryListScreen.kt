@@ -18,13 +18,39 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vibecoding.data.local.db.AppDatabase
+import com.vibecoding.recording.RecordingRepository
 import com.vibecoding.ui.placeholder.model.DiaryUiModel
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+@Composable
+fun DiaryListDbScreen(
+    onDiaryClick: (String) -> Unit
+) {
+    val context = LocalContext.current.applicationContext
+    val vm: DiaryListDbViewModel = viewModel(factory = DiaryListDbViewModelFactory(context))
+    val diaries by vm.diaries.collectAsState(initial = emptyList())
+
+    DiaryListScreen(
+        diaries = diaries,
+        onDiaryClick = onDiaryClick
+    )
+}
 
 @Composable
 fun DiaryListScreen(
@@ -140,4 +166,53 @@ private fun SoftTag(text: String) {
             .background(PlaceholderColors.TagBackground)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     )
+}
+
+class DiaryListDbViewModel(
+    context: android.content.Context
+) : ViewModel() {
+    private val db = AppDatabase.getInstance(context.applicationContext)
+
+    val diaries = db.diaryEntryDao()
+        .observeActiveByUser(RecordingRepository.MVP_LOCAL_USER_ID)
+        .map { entries ->
+            entries.map { entry ->
+                val article = entry.polishedArticle.ifBlank { entry.rawTranscript }
+                val preview = article.ifBlank {
+                    when (entry.processingStatus) {
+                        "draft_recording" -> "录音草稿"
+                        "recorded_pending_upload", "processing" -> "正在转写..."
+                        "processed_failed" -> "转写失败，请进入处理页重试"
+                        else -> "暂无内容"
+                    }
+                }
+                DiaryUiModel(
+                    id = entry.entryId,
+                    title = entry.title.takeIf { it.isNotBlank() && it != "Voice Draft" }
+                        ?: preview.take(18).ifBlank { "语音日记" },
+                    preview = preview,
+                    dateText = formatDateText(entry.entryDateLocal),
+                    category = entry.primaryCategoryId.ifBlank { "life" },
+                    tags = entry.dynamicTags
+                        .split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                )
+            }
+        }
+
+    private fun formatDateText(value: String): String {
+        return runCatching {
+            LocalDate.parse(value).format(DateTimeFormatter.ofPattern("M月d日 E", Locale.CHINA))
+        }.getOrElse { value }
+    }
+}
+
+class DiaryListDbViewModelFactory(
+    private val context: android.content.Context
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return DiaryListDbViewModel(context.applicationContext) as T
+    }
 }

@@ -30,6 +30,8 @@ import androidx.navigation.navArgument
 import com.vibecoding.ui.placeholder.model.MockData
 import com.vibecoding.ui.placeholder.screens.CalendarScreen
 import com.vibecoding.ui.placeholder.screens.DiaryDetailScreen
+import com.vibecoding.ui.placeholder.screens.DiaryDetailDbScreen
+import com.vibecoding.ui.placeholder.screens.DiaryListDbScreen
 import com.vibecoding.ui.placeholder.screens.DiaryListScreen
 import com.vibecoding.ui.placeholder.screens.ProcessingScreen
 import com.vibecoding.ui.placeholder.screens.ProfileScreen
@@ -88,19 +90,25 @@ fun PlaceholderAppRoot(
                 modifier = Modifier.padding(padding).padding(horizontal = 12.dp)
             ) {
                 composable(PlaceholderRoute.Home.route) {
-                    DiaryListScreen(
-                        diaries = MockData.diaries,
+                    DiaryListDbScreen(
                         onDiaryClick = { id -> navController.navigate(PlaceholderRoute.Detail.withId(id)) }
                     )
                 }
                 composable(PlaceholderRoute.Record.route) {
                     RecordScreen(
-                        onFinish = { navController.navigate(PlaceholderRoute.Processing.route) }
+                        onFinish = { entryId ->
+                            navController.navigate(PlaceholderRoute.Processing.withEntryId(entryId))
+                        }
                     )
                 }
-                composable(PlaceholderRoute.Processing.route) {
+                composable(
+                    route = PlaceholderRoute.Processing.route,
+                    arguments = listOf(navArgument("entryId") { type = NavType.StringType })
+                ) { backStack ->
+                    val entryId = backStack.arguments?.getString("entryId").orEmpty()
                     ProcessingScreen(
-                        onDone = { navController.navigate(PlaceholderRoute.Detail.withId(MockData.diaries.first().id)) }
+                        entryId = entryId,
+                        onDone = { navController.navigate(PlaceholderRoute.Detail.withId(entryId)) }
                     )
                 }
                 composable(
@@ -108,8 +116,12 @@ fun PlaceholderAppRoot(
                     arguments = listOf(navArgument("id") { type = NavType.StringType })
                 ) { backStack ->
                     val id = backStack.arguments?.getString("id").orEmpty()
-                    val diary = MockData.diaries.firstOrNull { it.id == id } ?: MockData.diaries.first()
-                    DiaryDetailScreen(diary = diary)
+                    if (id.matches(Regex("^[0-9a-fA-F-]{36}$"))) {
+                        DiaryDetailDbScreen(entryId = id)
+                    } else {
+                        val diary = MockData.diaries.firstOrNull { it.id == id } ?: MockData.diaries.first()
+                        DiaryDetailScreen(diary = diary)
+                    }
                 }
                 composable(PlaceholderRoute.Calendar.route) { CalendarScreen() }
                 composable(PlaceholderRoute.Search.route) {

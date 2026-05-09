@@ -23,6 +23,15 @@ interface DiaryEntryDao {
     @Query("SELECT * FROM diary_entries WHERE entryId = :entryId LIMIT 1")
     suspend fun findById(entryId: String): DiaryEntryEntity?
 
+    @Query("SELECT * FROM diary_entries WHERE entryId = :entryId LIMIT 1")
+    fun observeById(entryId: String): Flow<DiaryEntryEntity?>
+
+    @Query("SELECT * FROM diary_entries WHERE processingStatus = :processingStatus AND deletedAt IS NULL")
+    suspend fun findByProcessingStatus(processingStatus: String): List<DiaryEntryEntity>
+
     @Query("UPDATE diary_entries SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE entryId = :entryId")
     suspend fun softDelete(entryId: String, deletedAt: String, updatedAt: String)
+
+    @Query("DELETE FROM diary_entries WHERE entryId = :entryId")
+    suspend fun deleteById(entryId: String)
 }
