@@ -45,7 +45,15 @@ Until the later AI step is implemented:
 4. Transcript is saved in Room and appears in the Home list.
 5. Logs and sync debug fields must not store raw transcript content or audio content.
 
+## 2026-05-10 Stabilization Update
+- `DiaryEntry.processingStatus` is now treated as the only processing lifecycle field.
+- `SyncState.syncStatus` is no longer written with `processing`, `processed_succeeded`, or `processed_failed`.
+- During ASR processing, `SyncState.syncStatus` remains `pending_upload`.
+- On ASR/local processing failure, `SyncState.syncStatus` becomes `failed`.
+- Debug trace messages are logged through Android debug logging and are no longer stored in `SyncState.lastErrorMessage`.
+- `lastErrorMessage` is reserved for real failure reasons.
+
 ## Sign-off Status
-- Android: Implemented as third-party ASR local loop, pending real-device stability validation.
+- Android: Implemented as third-party ASR local loop; real-device MVP validation passed after stabilization.
 - Product: Current scope clarified.
 - Backend: Not required for this Step 9 phase.

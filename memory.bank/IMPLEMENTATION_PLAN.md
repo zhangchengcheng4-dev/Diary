@@ -66,10 +66,22 @@ Feature development is paused after the planning phase and before real business 
 - Receive transcript, fixed category, dynamic tags, and polished article.
 - Test: End-to-end processing of one sample audio returns all required result fields.
 
+Current implementation note:
+- The current MVP uses direct third-party ASR from Android through the `AudioApi` abstraction, not a self-hosted backend upload/job pipeline.
+- Segmented recordings are processed segment-by-segment, then transcript text is joined.
+- Category, tags, and polished article remain temporary placeholders until the AI result slice is implemented.
+- Backend upload/job processing remains deferred.
+
 ## 10. Implement Diary Assembly and Save
 - Merge AI result into a complete diary entry and persist locally and remotely.
 - Ensure one day supports multiple entries.
 - Test: Two entries on same date save correctly and are independently retrievable.
+
+Current implementation note:
+- Diary assembly currently persists locally only.
+- Remote diary save is still contract-only and must not be assumed complete.
+- `polishedArticle` currently falls back to the ASR transcript until AI polishing is connected.
+- `SyncState.syncStatus` remains `pending_upload` after local save so future sync can pick it up.
 
 ## 11. Implement Home List Screen (MVP)
 - Display diary cards in reverse chronological order.
@@ -82,6 +94,12 @@ Feature development is paused after the planning phase and before real business 
 - Editable fields in MVP: `title`, `polishedArticle`, `primaryCategoryId`, `DynamicTag`, `entryOccurredAt/entryDateLocal`.
 - Audio file is not editable in MVP.
 - Test: Open detail from list, play audio, edit text, delete entry, and verify list updates.
+
+Current implementation note:
+- Detail edit/delete is local-only.
+- Soft delete hides the entry from Home and marks `SyncState.syncStatus = deleted`.
+- Local audio files and `audio_assets` are intentionally preserved for now.
+- Remote delete is still deferred.
 
 ## 13. Implement Offline Queue and Background Sync
 - Queue upload/process tasks when offline.

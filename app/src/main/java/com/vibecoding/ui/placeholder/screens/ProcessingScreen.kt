@@ -26,7 +26,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibecoding.data.local.DiaryProcessingStatus
-import com.vibecoding.data.local.db.AppDatabase
+import com.vibecoding.data.local.SyncStatus
+import com.vibecoding.data.repository.LocalDiaryRepository
 import com.vibecoding.recording.Step9ProcessingUseCase
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
 import kotlinx.coroutines.flow.SharingStarted
@@ -105,19 +106,26 @@ class ProcessingViewModel(
     context: Context,
     private val entryId: String
 ) : ViewModel() {
-    private val appDb = AppDatabase.getInstance(context.applicationContext)
+    private val repository = LocalDiaryRepository(context.applicationContext)
     private val useCase = Step9ProcessingUseCase(context.applicationContext)
 
-    val uiState = appDb.diaryEntryDao().observeById(entryId)
+    val uiState = repository.observeEntry(entryId)
         .map { entry ->
             if (entry == null) {
                 ProcessingUiState(status = "entry_not_found", errorMessage = "条目不存在")
             } else {
-                val sync = appDb.syncStateDao().findById(entry.syncStateId)
+                val sync = repository.findSyncState(entry.syncStateId)
+                val realError = sync
+                    ?.takeIf {
+                        entry.processingStatus == DiaryProcessingStatus.ProcessedFailed ||
+                            it.syncStatus == SyncStatus.Failed
+                    }
+                    ?.lastErrorMessage
+                    ?.takeIf { it.isNotBlank() && !it.startsWith("[debug]") }
                 ProcessingUiState(
                     status = entry.processingStatus,
                     transcript = entry.rawTranscript,
-                    errorMessage = sync?.lastErrorMessage
+                    errorMessage = realError
                 )
             }
         }
@@ -125,7 +133,7 @@ class ProcessingViewModel(
 
     init {
         viewModelScope.launch {
-            val entry = appDb.diaryEntryDao().findById(entryId) ?: return@launch
+            val entry = repository.findEntry(entryId) ?: return@launch
             if (DiaryProcessingStatus.needsProcessing(entry.processingStatus)) {
                 useCase.run(entryId)
             }

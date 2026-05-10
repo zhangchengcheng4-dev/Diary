@@ -35,6 +35,12 @@
 - Current validation basis is the Room-backed real-device loop:
   `record -> ASR -> diary assembly/save -> Home visible -> Detail opens by entryId`.
 
+## 2026-05-10 Stabilization Update
+- Home still observes Room active diary entries and refreshes automatically.
+- `DiaryListDbViewModel` no longer accesses Room DAOs directly.
+- Home list reads are routed through the thin local `LocalDiaryRepository` boundary.
+- Soft-deleted entries remain hidden through the existing active-entry query (`deletedAt IS NULL`).
+
 ## Sign-off Status
 - Android: Current Home List MVP baseline documented.
 - Product: Accepted current Room real-device loop as validation basis for this step.

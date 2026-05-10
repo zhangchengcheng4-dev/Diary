@@ -5,6 +5,7 @@ import android.media.MediaMetadataRetriever
 import com.vibecoding.auth.util.nowUtcMillis
 import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.data.local.DiaryProcessingStatus
+import com.vibecoding.data.local.SyncStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.data.local.entity.AudioAssetEntity
 import com.vibecoding.data.local.entity.DiaryEntryEntity
@@ -54,7 +55,7 @@ class RecordingRepository(
                 entityType = "DiaryEntry",
                 entityId = entryId,
                 userId = userId,
-                syncStatus = "pending_upload",
+                syncStatus = SyncStatus.PendingUpload,
                 retryCount = 0,
                 lastErrorCode = null,
                 lastErrorMessage = null,
@@ -188,7 +189,7 @@ class RecordingRepository(
                     entityType = "DiaryEntry",
                     entityId = entryId,
                     userId = MVP_LOCAL_USER_ID,
-                    syncStatus = "pending_upload",
+                    syncStatus = SyncStatus.PendingUpload,
                     retryCount = 0,
                     lastErrorCode = null,
                     lastErrorMessage = null,

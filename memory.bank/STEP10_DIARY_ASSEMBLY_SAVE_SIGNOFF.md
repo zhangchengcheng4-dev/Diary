@@ -43,7 +43,13 @@
   - `dynamicTags`
   - `polishedArticle`
   - `processingStatus = processed_succeeded`
-  - linked `SyncState` success/error fields
+  - linked `SyncState` error fields when appropriate
+
+## 2026-05-10 Stabilization Update
+- Successful local diary assembly now keeps `SyncState.syncStatus = pending_upload`.
+- The processing result is represented only by `DiaryEntry.processingStatus = processed_succeeded`.
+- `SyncState.syncStatus` no longer stores `processed_succeeded`.
+- Remote diary save remains deferred and must not be treated as implemented.
 
 ## Same-day Multiple Entry Validation Target
 Pass criteria:
@@ -54,7 +60,7 @@ Pass criteria:
 
 ## Risk Notes
 - Remote diary save is still not implemented; this is intentional for the current phase.
-- The canonical sync-state names still differ from the temporary Step 9/10 processing statuses and should be reconciled in a later sync step.
+- Processing status and sync status are now separated for the local MVP.
 - AI category/tag/polishing remain placeholders and should not be treated as final AI output quality.
 
 ## Sign-off Status

@@ -4,6 +4,7 @@ import android.content.Context
 import com.vibecoding.auth.util.nowUtcMillis
 import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.data.local.DiaryProcessingStatus
+import com.vibecoding.data.local.SyncStatus
 import com.vibecoding.data.local.db.AppDatabase
 
 class DiaryAssemblyUseCase(
@@ -53,7 +54,7 @@ class DiaryAssemblyUseCase(
         db.syncStateDao().findById(entry.syncStateId)?.let { sync ->
             db.syncStateDao().upsert(
                 sync.copy(
-                    syncStatus = DiaryProcessingStatus.ProcessedSucceeded,
+                    syncStatus = SyncStatus.PendingUpload,
                     lastErrorCode = null,
                     lastErrorMessage = null,
                     updatedAt = now

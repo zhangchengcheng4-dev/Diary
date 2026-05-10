@@ -20,10 +20,11 @@
 
 ## Validation
 - Build check command: `:app:compileDebugKotlin`
-- Current status: **Blocked by remote Gradle distribution download timeout** in this execution environment.
-- Mitigation applied in project: `gradle-wrapper.properties` `networkTimeout` increased from `10000` to `60000`.
+- 2026-05-10 compile passed: `./gradlew :app:compileDebugKotlin`.
+- 2026-05-10 real-device MVP validation passed through the record -> processing -> ASR -> Home -> Detail loop.
+- Segmented recording remains the active strategy; `AudioRecorder` was not changed during the stabilization pass.
 
 ## Sign-off Status
-- Android: Completed implementation, pending local machine compile confirmation.
-- Product: Pending.
+- Android: Completed and compile-verified.
+- Product: Accepted for the current local MVP loop.
 - Backend: N/A (Step8 is local recording flow only).

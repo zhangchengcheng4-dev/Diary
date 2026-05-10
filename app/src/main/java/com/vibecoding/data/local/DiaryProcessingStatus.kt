@@ -13,3 +13,11 @@ object DiaryProcessingStatus {
     fun canRetry(status: String): Boolean =
         status == ProcessedFailed
 }
+
+object SyncStatus {
+    const val PendingUpload = "pending_upload"
+    const val Uploading = "uploading"
+    const val Synced = "synced"
+    const val Failed = "failed"
+    const val Deleted = "deleted"
+}

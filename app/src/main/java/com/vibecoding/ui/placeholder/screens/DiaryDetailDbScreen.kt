@@ -50,11 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.vibecoding.auth.util.nowUtcMillis
-import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.app.BuildConfig
 import com.vibecoding.data.local.DiaryProcessingStatus
-import com.vibecoding.data.local.db.AppDatabase
+import com.vibecoding.data.repository.LocalDiaryRepository
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
@@ -650,12 +648,12 @@ class DiaryDetailDbViewModel(
     context: Context,
     private val entryId: String
 ) : ViewModel() {
-    private val db = AppDatabase.getInstance(context.applicationContext)
-    val uiState = db.diaryEntryDao().observeById(entryId).map { entry ->
+    private val repository = LocalDiaryRepository(context.applicationContext)
+    val uiState = repository.observeEntry(entryId).map { entry ->
         if (entry == null) {
             DiaryDetailDbUiState(processingStatus = "entry_not_found")
         } else {
-            val audioAssets = db.audioAssetDao().findAllByEntryId(entry.entryId)
+            val audioAssets = repository.findAudioAssets(entry.entryId)
             val transcript = entry.rawTranscript
             val article = entry.polishedArticle.ifBlank { transcript }
             DiaryDetailDbUiState(
@@ -691,27 +689,18 @@ class DiaryDetailDbViewModel(
         tagsText: String,
         entryDateLocal: String
     ): String? {
-        val entry = db.diaryEntryDao().findById(entryId) ?: return "日记不存在"
-        val date = runCatching { LocalDate.parse(entryDateLocal.trim()) }.getOrNull()
-            ?: return "日期格式应为 yyyy-MM-dd"
-        val now = toIso8601Utc(nowUtcMillis())
-        db.diaryEntryDao().update(
-            entry.copy(
-                title = title.trim().ifBlank { "语音日记" },
-                polishedArticle = polishedArticle.trim(),
-                primaryCategoryId = normalizeCategory(category),
-                dynamicTags = normalizeTags(tagsText).joinToString(","),
-                entryOccurredAt = rebuildOccurredAt(entry.entryOccurredAt.ifBlank { entry.createdAt }, date),
-                entryDateLocal = date.toString(),
-                updatedAt = now
-            )
+        return repository.saveDetailEdits(
+            entryId = entryId,
+            title = title,
+            polishedArticle = polishedArticle,
+            category = category,
+            tagsText = tagsText,
+            entryDateLocal = entryDateLocal
         )
-        return null
     }
 
     suspend fun softDelete() {
-        val now = toIso8601Utc(nowUtcMillis())
-        db.diaryEntryDao().softDelete(entryId = entryId, deletedAt = now, updatedAt = now)
+        repository.softDeleteEntry(entryId)
     }
 
     private fun buildTitle(transcript: String, article: String, storedTitle: String): String {
@@ -739,37 +728,6 @@ class DiaryDetailDbViewModel(
         }
     }
 
-    private fun rebuildOccurredAt(originalUtc: String, newDate: LocalDate): String {
-        val zone = ZoneId.systemDefault()
-        return runCatching {
-            val originalLocal = Instant.parse(originalUtc).atZone(zone)
-            newDate
-                .atTime(originalLocal.toLocalTime())
-                .atZone(zone)
-                .toInstant()
-                .toString()
-        }.getOrElse {
-            newDate.atStartOfDay(zone).toInstant().toString()
-        }
-    }
-
-    private fun normalizeCategory(category: String): String {
-        val c = category.trim().lowercase()
-        return if (c in ALLOWED_CATEGORIES) c else "life"
-    }
-
-    private fun normalizeTags(tagsText: String): List<String> {
-        return tagsText
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .take(5)
-    }
-
-    companion object {
-        private val ALLOWED_CATEGORIES = setOf("work", "study", "life", "emotion", "health")
-    }
 }
 
 class DiaryDetailDbViewModelFactory(

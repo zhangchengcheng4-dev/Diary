@@ -103,17 +103,16 @@
 - Added independent Step 8 file: `STEP8_VOICE_RECORDING_FLOW_SIGNOFF.md`.
 - 2026-05-03 implementation completed:
   - Added microphone permission declaration in `AndroidManifest.xml`.
-  - Replaced `RecordScreen` placeholder with real recording UI (`开始/暂停/继续/停止 + 计时`).
+  - Replaced `RecordScreen` placeholder with real recording UI (start/pause/resume/stop + timer).
   - Added recording state machine with fixed MVP user id (`mvp_local_user`) and draft-on-start behavior.
   - Implemented segmented recording with app-specific storage (`files/recordings/`) using `MediaRecorder` (`m4a/aac`).
   - Implemented auto-stop at `30 minutes` and draft persistence.
   - Implemented cleanup flow on permission denial / recording failure: delete temp audio + soft-delete empty draft and related sync rows.
   - Updated local DB support for multi-segment assets per entry (removed unique index on `audio_assets.entryId`, DAO added ordered segment query).
 - Validation:
-  - Compile attempted: `:app:compileDebugKotlin`.
-  - Blocked by current execution environment network timeout while downloading Gradle distribution (`gradle-8.7-bin.zip`).
-  - Mitigation in project: `gradle/wrapper/gradle-wrapper.properties` `networkTimeout` set to `60000`.
-- Current status: `Implemented (Pending compile verification on machine with stable Gradle download access)`.
+  - 2026-05-10 compile passed: `./gradlew :app:compileDebugKotlin`.
+  - 2026-05-10 real-device MVP loop validation passed.
+- Current status: `Completed for local MVP loop`.
 
 ### Step 10
 - Added independent Step 10 file: `STEP10_DIARY_ASSEMBLY_SAVE_SIGNOFF.md`.
@@ -156,3 +155,43 @@
   - Compile check passed: `:app:compileDebugKotlin`.
   - Real-device check: edit/save stays on Detail and refreshes; delete returns Home and removes the entry from the list.
 - Current status: `Implemented (Compile verified, ready for real-device edit/delete validation)`.
+
+## 2026-05-10
+
+### Architecture Stabilization Pass
+- Added independent stabilization record: `ARCHITECTURE_STABILIZATION_SIGNOFF.md`.
+- Scope: no new product features, no backend, no AI integration, no WorkManager, no Room schema migration, no database clearing, no `XfyunAudioApi` or `AudioRecorder` main-path changes.
+- Phase 1 status semantics completed:
+  - `DiaryEntry.processingStatus` is limited to processing states:
+    - `draft_recording`
+    - `recorded_pending_upload`
+    - `processing`
+    - `processed_succeeded`
+    - `processed_failed`
+  - `SyncState.syncStatus` is limited to sync states:
+    - `pending_upload`
+    - `uploading`
+    - `synced`
+    - `failed`
+    - `deleted`
+  - ASR/local save success keeps `SyncState.syncStatus = pending_upload`.
+  - ASR/local processing failure writes `SyncState.syncStatus = failed`.
+  - Detail soft delete writes `SyncState.syncStatus = deleted`.
+- Phase 2 error/recovery stabilization completed:
+  - Removed debug writes from `SyncState.lastErrorMessage`.
+  - `lastErrorMessage` now only stores real failure reasons.
+  - Processing UI filters legacy `[debug]` values if older local rows contain them.
+  - App restart recovery still resumes `recorded_pending_upload` / `processing` entries.
+- Phase 3 minimal architecture boundary completed:
+  - Added thin local `LocalDiaryRepository`.
+  - Removed direct Room DAO access from `ProcessingViewModel`, `DiaryDetailDbViewModel`, and `DiaryListDbViewModel`.
+  - AppRoot restart recovery now queries recoverable entries through `LocalDiaryRepository`.
+- Phase 4 MVP validation cleanup completed:
+  - Checked active Record/Processing/Detail files for mojibake in user-facing validation text.
+  - Confirmed Detail edit/save refreshes through Room observer.
+  - Confirmed soft delete removes entry from Home and marks local sync status as `deleted`.
+  - Confirmed segmented audio lookup/playback path remains intact.
+- Validation:
+  - Compile passed: `./gradlew :app:compileDebugKotlin`.
+  - Real-device validation passed per user report.
+- Current status: `Architecture stabilization completed; ready for a small AI result boundary slice, but not full backend sync`.

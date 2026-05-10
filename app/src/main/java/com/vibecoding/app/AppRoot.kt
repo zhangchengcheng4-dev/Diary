@@ -14,8 +14,7 @@ import com.vibecoding.auth.ui.AuthScreen
 import com.vibecoding.auth.ui.AuthViewModel
 import com.vibecoding.auth.ui.AuthViewModelFactory
 import com.vibecoding.auth.ui.SessionBootstrapState
-import com.vibecoding.data.local.DiaryProcessingStatus
-import com.vibecoding.data.local.db.AppDatabase
+import com.vibecoding.data.repository.LocalDiaryRepository
 import com.vibecoding.recording.RecordingRepository
 import com.vibecoding.recording.Step9ProcessingUseCase
 import com.vibecoding.ui.placeholder.PlaceholderAppRoot
@@ -37,9 +36,7 @@ fun AppRoot() {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             RecordingRepository(context).recoverOrCleanupRecordingsOnAppStart()
-            val db = AppDatabase.getInstance(context)
-            val pending = db.diaryEntryDao().findByProcessingStatus(DiaryProcessingStatus.RecordedPendingUpload) +
-                db.diaryEntryDao().findByProcessingStatus(DiaryProcessingStatus.Processing)
+            val pending = LocalDiaryRepository(context).findRecoverableProcessingEntries()
             val processor = Step9ProcessingUseCase(context)
             pending.distinctBy { it.entryId }.forEach { entry ->
                 processor.run(entry.entryId)

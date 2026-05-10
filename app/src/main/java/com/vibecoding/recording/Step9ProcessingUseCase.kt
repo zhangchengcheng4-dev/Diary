@@ -1,10 +1,12 @@
 ﻿package com.vibecoding.recording
 
 import android.content.Context
+import android.util.Log
 import com.vibecoding.auth.util.nowUtcMillis
 import com.vibecoding.auth.util.toIso8601Utc
 import com.vibecoding.app.BuildConfig
 import com.vibecoding.data.local.DiaryProcessingStatus
+import com.vibecoding.data.local.SyncStatus
 import com.vibecoding.data.local.db.AppDatabase
 import com.vibecoding.data.local.entity.SyncStateEntity
 import com.vibecoding.data.network.AudioApi
@@ -74,7 +76,7 @@ class Step9ProcessingUseCase(
             withContext(Dispatchers.IO) { writeDebug(entryId, "before set processing") }
             withContext(Dispatchers.IO) {
                 withTimeout(5_000) {
-                    updateProcessingStatus(entry, "processing")
+                    updateProcessingStatus(entry, DiaryProcessingStatus.Processing)
                 }
             }
             withContext(Dispatchers.IO) { writeDebug(entryId, "asr start duration=$durationSeconds segmentCount=${assets.size}") }
@@ -181,7 +183,14 @@ class Step9ProcessingUseCase(
         writeDebug(entry.entryId, "update sync findById")
         db.syncStateDao().findById(entry.syncStateId)?.let { sync ->
             writeDebug(entry.entryId, "update sync upsert")
-            db.syncStateDao().upsert(sync.copy(syncStatus = status, updatedAt = now))
+            db.syncStateDao().upsert(
+                sync.copy(
+                    syncStatus = SyncStatus.PendingUpload,
+                    lastErrorCode = null,
+                    lastErrorMessage = null,
+                    updatedAt = now
+                )
+            )
         }
         writeDebug(entry.entryId, "update status done=$status")
     }
@@ -196,7 +205,7 @@ class Step9ProcessingUseCase(
                 entityType = "DiaryEntry",
                 entityId = entry.entryId,
                 userId = entry.userId,
-                syncStatus = DiaryProcessingStatus.ProcessedFailed,
+                syncStatus = SyncStatus.Failed,
                 retryCount = 0,
                 lastErrorCode = null,
                 lastErrorMessage = null,
@@ -208,7 +217,7 @@ class Step9ProcessingUseCase(
         }
         db.syncStateDao().upsert(
             sync.copy(
-                syncStatus = DiaryProcessingStatus.ProcessedFailed,
+                syncStatus = SyncStatus.Failed,
                 retryCount = sync.retryCount + 1,
                 lastErrorCode = code,
                 lastErrorMessage = message,
@@ -220,30 +229,7 @@ class Step9ProcessingUseCase(
 
     private suspend fun writeDebug(entryId: String, message: String) {
         if (!BuildConfig.DEBUG) return
-        val entry = db.diaryEntryDao().findById(entryId) ?: return
-        val now = toIso8601Utc(nowUtcMillis())
-        val sync = db.syncStateDao().findById(entry.syncStateId) ?: run {
-            SyncStateEntity(
-                syncStateId = if (entry.syncStateId.isBlank()) UUID.randomUUID().toString() else entry.syncStateId,
-                entityType = "DiaryEntry",
-                entityId = entry.entryId,
-                userId = entry.userId,
-                syncStatus = entry.processingStatus,
-                retryCount = 0,
-                lastErrorCode = null,
-                lastErrorMessage = null,
-                lastAttemptAt = null,
-                nextRetryAt = null,
-                createdAt = now,
-                updatedAt = now
-            )
-        }
-        db.syncStateDao().upsert(
-            sync.copy(
-                lastErrorMessage = "[debug] $message",
-                updatedAt = now
-            )
-        )
+        Log.d("Step9ProcessingUseCase", "entryId=$entryId $message")
     }
 
 }

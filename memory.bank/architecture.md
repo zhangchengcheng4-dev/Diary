@@ -88,5 +88,18 @@ Pass criteria:
 2. Dependency direction is explicitly defined.
 3. `ui -> network` direct dependency is explicitly prohibited.
 
+## 2026-05-10 Stabilization Note
+The long-term target remains:
+
+`ui -> viewmodel -> domain <- data -> (network, storage, sync)`
+
+For the current solo-developer MVP stabilization phase, the project uses a pragmatic thin local repository boundary before a full domain/data split:
+
+- `LocalDiaryRepository` is the current local Room access boundary for Home, Processing, Detail, and app restart recovery reads.
+- `ProcessingViewModel`, `DiaryDetailDbViewModel`, and `DiaryListDbViewModel` should not access Room DAOs directly.
+- New UI/ViewModel code should prefer repository/use-case calls over direct `AppDatabase` usage.
+- Existing non-UI local orchestration classes (`RecordingRepository`, `Step9ProcessingUseCase`, `DiaryAssemblyUseCase`) may keep direct Room access until the MVP loop is stable.
+- Do not introduce Hilt, multi-module restructuring, WorkManager sync, or broad UI package migration as part of this stabilization pass.
+
 Status:
 - Step 2 architecture contract drafted: `Ready for review`

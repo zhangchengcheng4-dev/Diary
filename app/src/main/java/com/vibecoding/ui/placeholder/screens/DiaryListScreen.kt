@@ -30,7 +30,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vibecoding.data.local.DiaryProcessingStatus
-import com.vibecoding.data.local.db.AppDatabase
+import com.vibecoding.data.repository.LocalDiaryRepository
 import com.vibecoding.recording.RecordingRepository
 import com.vibecoding.ui.placeholder.model.DiaryUiModel
 import com.vibecoding.ui.placeholder.theme.PlaceholderColors
@@ -173,10 +173,10 @@ private fun SoftTag(text: String) {
 class DiaryListDbViewModel(
     context: android.content.Context
 ) : ViewModel() {
-    private val db = AppDatabase.getInstance(context.applicationContext)
+    private val repository = LocalDiaryRepository(context.applicationContext)
 
-    val diaries = db.diaryEntryDao()
-        .observeActiveByUser(RecordingRepository.MVP_LOCAL_USER_ID)
+    val diaries = repository
+        .observeActiveEntriesByUser(RecordingRepository.MVP_LOCAL_USER_ID)
         .map { entries ->
             entries.map { entry ->
                 val article = entry.polishedArticle.ifBlank { entry.rawTranscript }

@@ -25,6 +25,7 @@
    - Tags are stored in the current comma-separated local field, trimmed, deduplicated, and capped at 5.
 4. Delete:
    - Delete uses local soft delete on `DiaryEntry.deletedAt`.
+   - Delete marks the linked local `SyncState.syncStatus` as `deleted`.
    - Local audio files and `audio_assets` rows are intentionally not deleted in this step.
    - Home list filters `deletedAt IS NULL`, so the deleted entry is removed from Home after returning.
 
@@ -45,10 +46,17 @@
 
 ## Risk Notes
 - `DynamicTag` is currently represented by the existing comma-separated `dynamicTags` field, not a separate tag table.
-- Soft delete does not update remote sync state in this step.
+- Soft delete updates the local sync marker to `deleted`; remote deletion remains deferred.
 - Soft delete does not remove local audio files or `audio_assets`; cleanup is intentionally deferred.
 
+## 2026-05-10 Stabilization Update
+- `DiaryDetailDbViewModel` no longer accesses Room DAOs directly.
+- Detail read/edit/delete now routes through the thin local `LocalDiaryRepository` boundary.
+- Detail edit/save still refreshes from the Room observer.
+- Segmented audio lookup/playback is preserved.
+- Real-device validation passed for edit/save refresh, soft delete removal from Home, and segmented audio playback.
+
 ## Sign-off Status
-- Android: Implemented local MVP edit/delete behavior.
+- Android: Implemented and stabilized local MVP edit/delete behavior.
 - Product: Confirmed save/delete behavior and date editing constraint.
 - Backend: Not required for this local-only Step 12 slice.
