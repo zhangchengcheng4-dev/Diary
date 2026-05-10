@@ -8,7 +8,8 @@ import com.vibecoding.data.local.SyncStatus
 import com.vibecoding.data.local.db.AppDatabase
 
 class DiaryAssemblyUseCase(
-    context: Context
+    context: Context,
+    private val diaryAiProcessor: DiaryAiProcessor = FakeDiaryAiProcessor()
 ) {
     companion object {
         private val ALLOWED_CATEGORIES = setOf("work", "study", "life", "emotion", "health")
@@ -31,18 +32,24 @@ class DiaryAssemblyUseCase(
         val entry = db.diaryEntryDao().findById(entryId)
             ?: return DiaryAssemblyResult.Failed("ENTRY_NOT_FOUND", "Diary entry not found")
         val now = toIso8601Utc(nowUtcMillis())
-        val normalizedCategory = normalizeCategory(category)
-        val normalizedTags = normalizeTags(tags)
-
-        // Temporary AI placeholder: until classification/tagging/polishing is implemented,
-        // the polished article remains the ASR transcript and tags may be empty.
+        val aiResult = runCatching { diaryAiProcessor.process(normalizedTranscript) }.getOrNull()
+        val normalizedCategory = normalizeCategory(category ?: aiResult?.primaryCategoryId)
+        val normalizedTags = normalizeTags(tags ?: aiResult?.dynamicTags, normalizedCategory)
+        val finalTitle = aiResult?.title
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: entry.title.ifBlank { "语音日记" }
         val finalPolishedArticle = polishedArticle
             ?.trim()
             ?.takeIf { it.isNotBlank() }
+            ?: aiResult?.polishedArticle
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
             ?: normalizedTranscript
 
         db.diaryEntryDao().upsert(
             entry.copy(
+                title = finalTitle,
                 rawTranscript = normalizedTranscript,
                 primaryCategoryId = normalizedCategory,
                 dynamicTags = normalizedTags.joinToString(","),
@@ -70,12 +77,29 @@ class DiaryAssemblyUseCase(
         return if (c in ALLOWED_CATEGORIES) c else "life"
     }
 
-    private fun normalizeTags(tags: List<String>?): List<String> {
+    private fun normalizeTags(tags: List<String>?, category: String): List<String> {
         return tags.orEmpty()
-            .map { it.trim() }
+            .map { normalizeTag(it) }
             .filter { it.isNotEmpty() }
+            .filterNot { isCategoryId(it) }
+            .filterNot { it == category }
             .distinct()
             .take(5)
+    }
+
+    private fun normalizeTag(tag: String): String {
+        return when (tag.trim().lowercase()) {
+            "work", "工作" -> "工作"
+            "study", "学习" -> "学习"
+            "life", "生活" -> "生活"
+            "emotion", "情绪" -> "情绪"
+            "health", "健康" -> "健康"
+            else -> tag.trim().lowercase()
+        }
+    }
+
+    private fun isCategoryId(tag: String): Boolean {
+        return tag in ALLOWED_CATEGORIES
     }
 }
 

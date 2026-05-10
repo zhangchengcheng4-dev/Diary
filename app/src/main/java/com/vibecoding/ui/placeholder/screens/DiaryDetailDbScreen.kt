@@ -198,7 +198,7 @@ fun DiaryDetailDbScreen(
             item { AudioPlayerCard(audio = state.audio, controller = audioController) }
             item { TranscriptCard(transcript = state.transcript) }
             item { PolishedArticleCard(transcript = state.transcript, polishedArticle = state.polishedArticle) }
-            item { TagsCard(category = state.category, tags = state.tags) }
+            item { TagsCard(tags = state.tags) }
             item { NoteCard() }
             if (BuildConfig.DEBUG) {
                 item { DebugInfoCard(state = state) }
@@ -457,12 +457,11 @@ private fun PolishedArticleCard(transcript: String, polishedArticle: String) {
 }
 
 @Composable
-private fun TagsCard(category: String, tags: List<String>) {
+private fun TagsCard(tags: List<String>) {
     SoftCard {
         Text("标签", color = PlaceholderColors.PrimaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Chip(text = category.ifBlank { "life" })
             if (tags.isEmpty()) {
                 Text("暂无标签", color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
             } else {

@@ -56,12 +56,13 @@ class LocalDiaryRepository(
         val date = runCatching { LocalDate.parse(entryDateLocal.trim()) }.getOrNull()
             ?: return "日期格式应为 yyyy-MM-dd"
         val now = toIso8601Utc(nowUtcMillis())
+        val normalizedCategory = normalizeCategory(category)
         db.diaryEntryDao().update(
             entry.copy(
                 title = title.trim().ifBlank { "语音日记" },
                 polishedArticle = polishedArticle.trim(),
-                primaryCategoryId = normalizeCategory(category),
-                dynamicTags = normalizeTags(tagsText).joinToString(","),
+                primaryCategoryId = normalizedCategory,
+                dynamicTags = normalizeTags(tagsText, normalizedCategory).joinToString(","),
                 entryOccurredAt = rebuildOccurredAt(entry.entryOccurredAt.ifBlank { entry.createdAt }, date),
                 entryDateLocal = date.toString(),
                 updatedAt = now
@@ -107,13 +108,26 @@ class LocalDiaryRepository(
         return if (c in ALLOWED_CATEGORIES) c else "life"
     }
 
-    private fun normalizeTags(tagsText: String): List<String> {
+    private fun normalizeTags(tagsText: String, category: String): List<String> {
         return tagsText
             .split(",")
-            .map { it.trim() }
+            .map { normalizeTag(it) }
             .filter { it.isNotEmpty() }
+            .filterNot { it in ALLOWED_CATEGORIES }
+            .filterNot { it == category }
             .distinct()
             .take(5)
+    }
+
+    private fun normalizeTag(tag: String): String {
+        return when (tag.trim().lowercase()) {
+            "work", "工作" -> "工作"
+            "study", "学习" -> "学习"
+            "life", "生活" -> "生活"
+            "emotion", "情绪" -> "情绪"
+            "health", "健康" -> "健康"
+            else -> tag.trim().lowercase()
+        }
     }
 
     private companion object {

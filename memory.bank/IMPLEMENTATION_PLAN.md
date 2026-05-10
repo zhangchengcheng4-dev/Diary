@@ -69,7 +69,8 @@ Feature development is paused after the planning phase and before real business 
 Current implementation note:
 - The current MVP uses direct third-party ASR from Android through the `AudioApi` abstraction, not a self-hosted backend upload/job pipeline.
 - Segmented recordings are processed segment-by-segment, then transcript text is joined.
-- Category, tags, and polished article remain temporary placeholders until the AI result slice is implemented.
+- Category, tags, title, and polished article are currently produced by a local fake AI boundary after ASR succeeds.
+- Real AI API/backend processing remains deferred.
 - Backend upload/job processing remains deferred.
 
 ## 10. Implement Diary Assembly and Save
@@ -80,7 +81,8 @@ Current implementation note:
 Current implementation note:
 - Diary assembly currently persists locally only.
 - Remote diary save is still contract-only and must not be assumed complete.
-- `polishedArticle` currently falls back to the ASR transcript until AI polishing is connected.
+- `polishedArticle` currently comes from the local fake AI processor and falls back to the ASR transcript if local AI processing fails.
+- Dynamic tags are normalized and deduplicated before local save; category IDs are not duplicated as tags.
 - `SyncState.syncStatus` remains `pending_upload` after local save so future sync can pick it up.
 
 ## 11. Implement Home List Screen (MVP)

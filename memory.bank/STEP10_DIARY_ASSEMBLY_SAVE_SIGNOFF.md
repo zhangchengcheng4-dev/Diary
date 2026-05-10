@@ -10,7 +10,7 @@
 - Do not connect real backend diary create/update APIs.
 - Do not implement remote audio upload, backend job creation, or backend polling.
 - Do not modify `XfyunAudioApi` or the ASR upload/job polling main path.
-- Do not implement AI category classification, dynamic tag generation, or article polishing yet.
+- Do not implement real AI category classification, dynamic tag generation, or article polishing yet.
 - Do not implement detail edit/delete, search/list enhancement, or UI text cleanup.
 
 ## Decisions (Locked 2026-05-09)
@@ -29,10 +29,11 @@
 4. Empty transcript handling:
    - Empty transcript must not be saved as `processed_succeeded`.
    - The caller must keep or move the entry into a failure state.
-5. Temporary AI placeholder:
-   - Until a later AI step exists, `polishedArticle` equals the ASR transcript when no polished article is supplied.
-   - Tags may be empty.
-   - Category defaults to `life`.
+5. Local fake AI boundary:
+   - Until real AI integration exists, `DiaryAssemblyUseCase` calls a local fake processor after ASR transcript success.
+   - AI processor failure must not block diary creation.
+   - On AI failure, save `rawTranscript`, fall back `polishedArticle` to transcript, and fall back category to `life`.
+   - Tags may be empty after normalization.
 
 ## Implementation Notes
 - Added `DiaryAssemblyUseCase` as the Step 10 local assembly/save boundary.
@@ -51,6 +52,20 @@
 - `SyncState.syncStatus` no longer stores `processed_succeeded`.
 - Remote diary save remains deferred and must not be treated as implemented.
 
+## 2026-05-10 Local Fake AI Update
+- Added `DiaryAiProcessor` / `FakeDiaryAiProcessor` as the minimal local AI boundary.
+- `DiaryAssemblyUseCase` now maps ASR transcript into:
+  - `title`
+  - `rawTranscript`
+  - `polishedArticle`
+  - `primaryCategoryId`
+  - `dynamicTags`
+- Tag normalization now trims, lowercases, removes blanks, removes duplicates, maps category synonyms, and keeps at most 5 tags.
+- Category IDs (`work`, `study`, `life`, `emotion`, `health`) are not stored as dynamic tags.
+- `work` / `工作` style synonyms are canonicalized to Chinese display tags, e.g. `工作`.
+- Detail display separates category from dynamic tags; category remains in summary and the tags card displays only `dynamicTags`.
+- Verified on real device by user after fixing duplicate display for the work/meeting transcript case.
+
 ## Same-day Multiple Entry Validation Target
 Pass criteria:
 1. Record and process two entries on the same local date.
@@ -61,7 +76,7 @@ Pass criteria:
 ## Risk Notes
 - Remote diary save is still not implemented; this is intentional for the current phase.
 - Processing status and sync status are now separated for the local MVP.
-- AI category/tag/polishing remain placeholders and should not be treated as final AI output quality.
+- AI category/tag/polishing are local fake outputs and should not be treated as final AI output quality.
 
 ## Sign-off Status
 - Android: Implemented local diary assembly/save boundary.

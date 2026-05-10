@@ -195,3 +195,21 @@
   - Compile passed: `./gradlew :app:compileDebugKotlin`.
   - Real-device validation passed per user report.
 - Current status: `Architecture stabilization completed; ready for a small AI result boundary slice, but not full backend sync`.
+
+### Local Fake AI Boundary Slice
+- Scope: minimum local AI boundary only; no real AI API, no API key, no backend/sync/WorkManager, no Room schema change, no Xfyun/recording main-chain change, and no UI refactor.
+- Added `DiaryAiProcessor` / `FakeDiaryAiProcessor`.
+- `DiaryAssemblyUseCase` now calls fake local AI after successful ASR transcript and persists `title`, `polishedArticle`, `primaryCategoryId`, and `dynamicTags`.
+- AI processor failure degrades to saving the original transcript instead of failing diary creation.
+- Fixed duplicate tag behavior:
+  - Fake AI no longer inserts `primaryCategoryId` directly into `dynamicTags`.
+  - `DiaryAssemblyUseCase` normalizes tags before save.
+  - `LocalDiaryRepository.saveDetailEdits` uses the same tag normalization for manual edits.
+  - Detail tags card displays only dynamic tags; category is shown separately in the summary.
+  - `work` / `工作` synonyms canonicalize to display tag `工作`; category IDs are filtered out of dynamic tags.
+- Validation:
+  - User real-device check passed for transcript: `今天很忙碌，项目推进到很晚，一直在开会，整个人很疲惫。`
+  - Expected display: category `work`, tags `工作`.
+  - `./gradlew :app` was attempted but is not a valid Gradle task in this project.
+  - Compile passed: `./gradlew :app:compileDebugKotlin`.
+- Current status: `Completed and real-device verified for local fake AI tag boundary`.
