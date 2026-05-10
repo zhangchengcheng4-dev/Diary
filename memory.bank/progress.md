@@ -213,3 +213,21 @@
   - `./gradlew :app` was attempted but is not a valid Gradle task in this project.
   - Compile passed: `./gradlew :app:compileDebugKotlin`.
 - Current status: `Completed and real-device verified for local fake AI tag boundary`.
+
+### Step 14 Loading Error Empty States
+- Added independent Step 14 file: `STEP14_LOADING_ERROR_EMPTY_STATES_SIGNOFF.md`.
+- Scope: local processing UI state cleanup only; no backend, sync, WorkManager, real AI, Room schema, Xfyun, or recording main-chain changes.
+- Processing screen now maps raw processing statuses into clearer user-facing states:
+  - loading
+  - entry not found
+  - waiting for processing
+  - processing
+  - succeeded
+  - failed
+- Active states show a progress indicator.
+- Failure states show stored error code/message and keep manual retry.
+- Success state keeps the detail navigation action.
+- Empty transcript copy is now explicit and state-specific.
+- Validation:
+  - Compile passed: `./gradlew :app:compileDebugKotlin`.
+- Current status: `Implemented (Compile verified, ready for quick real-device failure/success state check)`.

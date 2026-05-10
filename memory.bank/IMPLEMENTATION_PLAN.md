@@ -114,6 +114,11 @@ Current implementation note:
 - Ensure actionable retry paths.
 - Test: Simulate timeout/network failure and verify expected UI state and retry behavior.
 
+Current implementation note:
+- Processing screen now maps local processing states into user-facing loading, pending, processing, success, failure, missing-entry, and empty-transcript states.
+- Failure shows stored local error code/message and keeps manual retry.
+- Network/backend sync states remain deferred because backend sync and WorkManager are not connected.
+
 ## 15. Add Logging, Privacy, and Safety Controls
 - Add structured logs for key flow milestones without sensitive content leakage.
 - Ensure user can delete entry and corresponding remote data references.
