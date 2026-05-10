@@ -68,7 +68,7 @@ class Step9ProcessingUseCase(
                 val a = assets.first()
                 writeDebug(
                     entryId,
-                    "asset audioAssetId=${a.audioAssetId} path=${a.localPath} exists=${File(a.localPath).exists()} size=${File(a.localPath).length()} mime=${a.mimeType} durationMs=${a.durationMs}"
+                    "asset audioAssetId=${a.audioAssetId} exists=${File(a.localPath).exists()} size=${File(a.localPath).length()} mime=${a.mimeType} durationMs=${a.durationMs}"
                 )
             }
 
@@ -108,7 +108,7 @@ class Step9ProcessingUseCase(
             }
         }.onFailure { ex ->
             withContext(Dispatchers.IO) {
-                markFailed(entryId, "STEP9_EXCEPTION", "${ex::class.simpleName}: ${ex.message.orEmpty()}".take(240))
+                markFailed(entryId, "STEP9_EXCEPTION", "${ex::class.simpleName}: ${sanitizeFailureMessage(ex.message.orEmpty())}".take(240))
             }
         }
     }
@@ -198,6 +198,7 @@ class Step9ProcessingUseCase(
     private suspend fun markFailed(entryId: String, code: String, message: String) {
         val entry = db.diaryEntryDao().findById(entryId) ?: return
         val now = toIso8601Utc(nowUtcMillis())
+        val safeMessage = sanitizeFailureMessage(message)
         db.diaryEntryDao().upsert(entry.copy(processingStatus = DiaryProcessingStatus.ProcessedFailed, updatedAt = now))
         val sync = db.syncStateDao().findById(entry.syncStateId) ?: run {
             SyncStateEntity(
@@ -220,11 +221,18 @@ class Step9ProcessingUseCase(
                 syncStatus = SyncStatus.Failed,
                 retryCount = sync.retryCount + 1,
                 lastErrorCode = code,
-                lastErrorMessage = message,
+                lastErrorMessage = safeMessage,
                 lastAttemptAt = now,
                 updatedAt = now
             )
         )
+    }
+
+    private fun sanitizeFailureMessage(message: String): String {
+        return message
+            .replace(Regex("[A-Za-z]:\\\\[^\\s]+"), "[local_path]")
+            .replace(Regex("/[^\\s]+"), "[local_path]")
+            .take(240)
     }
 
     private suspend fun writeDebug(entryId: String, message: String) {

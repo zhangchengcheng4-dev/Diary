@@ -63,11 +63,11 @@ class XfyunAudioApi(
 
     override suspend fun uploadAudio(request: UploadAudioRequest): ApiEnvelope<UploadAudioResponse> {
         val file = File(request.fileName)
-        if (!file.exists() || file.length() <= 0L) return envelopeError("XFYUN_FILE_NOT_FOUND", "Audio file not found: ${request.fileName}")
+        if (!file.exists() || file.length() <= 0L) return envelopeError("XFYUN_FILE_NOT_FOUND", "Audio file not found")
         if (appId.isBlank() || apiKey.isBlank() || apiSecret.isBlank()) return envelopeError("XFYUN_CONFIG_MISSING", "WebSocket appId/apiKey/apiSecret missing")
         val pcmBytes = runCatching { decodeToPcm16kMono(file) }.getOrElse {
             Log.e("XfyunAudioApi", "audio decode failed", it)
-            return envelopeError("XFYUN_PCM_DECODE_FAILED", "音频转PCM失败: ${it.message}")
+            return envelopeError("XFYUN_PCM_DECODE_FAILED", "音频转PCM失败")
         }
         Log.i("XfyunAudioApi", "pcm ready bytes=${pcmBytes.size} from=${file.name}")
 

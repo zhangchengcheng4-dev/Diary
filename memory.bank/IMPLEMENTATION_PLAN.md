@@ -124,6 +124,13 @@ Current implementation note:
 - Ensure user can delete entry and corresponding remote data references.
 - Test: Log review confirms no raw secrets/audio content; delete flow removes data as designed.
 
+Current implementation note:
+- Step 9 logs transcript length only, not raw transcript content.
+- Xfyun auth logs mask authorization URL and API key.
+- Local audio paths are no longer written to Step 9 debug logs or Xfyun file errors.
+- Step 9 failure messages are sanitized before being stored in `SyncState.lastErrorMessage`.
+- Remote deletion remains deferred; local soft delete is covered by Step 12.
+
 ## 16. Execute MVP QA and Release Gate
 - Run regression on core scenarios: first login, first recording, processing, browse, offline sync recovery.
 - Track and fix P0/P1 issues only for MVP release.

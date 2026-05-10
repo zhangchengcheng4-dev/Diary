@@ -231,3 +231,16 @@
 - Validation:
   - Compile passed: `./gradlew :app:compileDebugKotlin`.
 - Current status: `Implemented (Compile verified, ready for quick real-device failure/success state check)`.
+
+### Step 15 Logging Privacy Safety
+- Added independent Step 15 file: `STEP15_LOGGING_PRIVACY_SAFETY_SIGNOFF.md`.
+- Scope: local logging and stored failure-message privacy cleanup only; no backend, sync, WorkManager, real AI, Room schema, ASR protocol, or recording behavior changes.
+- Confirmed transcript content is not logged; Step 9 logs transcript length only.
+- Confirmed Xfyun auth logging masks authorization URL and API key.
+- Removed full local audio path from Step 9 asset debug logs.
+- Removed local file path from Xfyun file-not-found errors.
+- Removed decoder exception detail from Xfyun PCM decode failure user-facing error.
+- Added Step 9 failure-message sanitization before writing `SyncState.lastErrorMessage`.
+- Validation:
+  - Compile passed: `./gradlew :app:compileDebugKotlin`.
+- Current status: `Implemented (Compile verified, ready for quick Logcat/privacy review)`.
