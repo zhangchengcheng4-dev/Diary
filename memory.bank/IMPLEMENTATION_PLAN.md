@@ -34,7 +34,7 @@ Feature development is paused after the planning phase and before real business 
 - Lock Step 5 decisions:
   - Auth: `email+password` only for MVP (phone+OTP deferred).
   - AI result fields: `transcript`, `category`, `tags`, `polishedArticle`.
-  - Fixed category set: `work`, `study`, `life`, `emotion`, `health`.
+  - Current diary AI categories: `reading`, `food`, `mood`, `work`, `sports`, `entertainment`.
   - Dynamic tag limit: max `5`, user-editable.
   - Diary list: reverse chronological + pagination, `pageSize=20`.
   - Sync conflict: server-wins.
@@ -69,8 +69,8 @@ Feature development is paused after the planning phase and before real business 
 Current implementation note:
 - The current MVP uses direct third-party ASR from Android through the `AudioApi` abstraction, not a self-hosted backend upload/job pipeline.
 - Segmented recordings are processed segment-by-segment, then transcript text is joined.
-- Category, tags, title, and polished article are currently produced by a local fake AI boundary after ASR succeeds.
-- Real AI API/backend processing remains deferred.
+- Category, tags, title, and polished article are currently produced by the Step 10 diary AI boundary after ASR succeeds.
+- The current development build can call DeepSeek directly through `DiaryAiProcessor`, with fake AI as a configurable fallback.
 - Backend upload/job processing remains deferred.
 
 ## 10. Implement Diary Assembly and Save
@@ -81,7 +81,7 @@ Current implementation note:
 Current implementation note:
 - Diary assembly currently persists locally only.
 - Remote diary save is still contract-only and must not be assumed complete.
-- `polishedArticle` currently comes from the local fake AI processor and falls back to the ASR transcript if local AI processing fails.
+- `polishedArticle` currently comes from DeepSeek when configured and falls back to the ASR transcript if AI processing fails.
 - Dynamic tags are normalized and deduplicated before local save; category IDs are not duplicated as tags.
 - `SyncState.syncStatus` remains `pending_upload` after local save so future sync can pick it up.
 

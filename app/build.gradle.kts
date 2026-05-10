@@ -16,6 +16,12 @@ val xfyunAppId = localProps.getProperty("xfyun.appId", "")
 val xfyunApiKey = localProps.getProperty("xfyun.apiKey", "")
 val xfyunApiSecret = localProps.getProperty("xfyun.apiSecret", "")
 val xfyunUseMock = localProps.getProperty("xfyun.useMock", "false")
+val deepSeekApiKey = localProps.getProperty("deepseek.apiKey", "")
+val deepSeekBaseUrl = localProps.getProperty("deepseek.baseUrl", "https://api.deepseek.com")
+val deepSeekModel = localProps.getProperty("deepseek.model", "deepseek-v4-flash")
+val deepSeekUseFake = localProps.getProperty("deepseek.useFake", "true")
+
+fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "com.vibecoding.app"
@@ -30,6 +36,10 @@ android {
         buildConfigField("String", "XFYUN_API_KEY", "\"$xfyunApiKey\"")
         buildConfigField("String", "XFYUN_API_SECRET", "\"$xfyunApiSecret\"")
         buildConfigField("boolean", "XFYUN_USE_MOCK", xfyunUseMock)
+        buildConfigField("String", "DEEPSEEK_API_KEY", deepSeekApiKey.asBuildConfigString())
+        buildConfigField("String", "DEEPSEEK_BASE_URL", deepSeekBaseUrl.asBuildConfigString())
+        buildConfigField("String", "DEEPSEEK_MODEL", deepSeekModel.asBuildConfigString())
+        buildConfigField("boolean", "DEEPSEEK_USE_FAKE", deepSeekUseFake)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true

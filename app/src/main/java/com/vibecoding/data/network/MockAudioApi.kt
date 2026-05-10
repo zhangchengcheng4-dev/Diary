@@ -30,7 +30,7 @@ class MockAudioApi : AudioApi {
             jobId = jobId,
             status = status,
             transcript = if (status == "succeeded") transcript else null,
-            category = if (status == "succeeded") "life" else null, // Temporary AI placeholder.
+            category = if (status == "succeeded") "mood" else null, // Temporary AI placeholder.
             tags = if (status == "succeeded") emptyList() else null, // Temporary AI placeholder.
             polishedArticle = if (status == "succeeded") transcript else null // Temporary AI placeholder.
         )

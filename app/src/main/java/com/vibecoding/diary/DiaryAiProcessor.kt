@@ -1,5 +1,7 @@
 package com.vibecoding.diary
 
+import com.vibecoding.app.BuildConfig
+
 data class DiaryAiResult(
     val title: String,
     val polishedArticle: String,
@@ -9,6 +11,18 @@ data class DiaryAiResult(
 
 interface DiaryAiProcessor {
     suspend fun process(transcript: String): DiaryAiResult
+}
+
+fun createDefaultDiaryAiProcessor(): DiaryAiProcessor {
+    return if (BuildConfig.DEEPSEEK_USE_FAKE) {
+        FakeDiaryAiProcessor()
+    } else {
+        DeepSeekDiaryAiProcessor(
+            apiKey = BuildConfig.DEEPSEEK_API_KEY,
+            baseUrl = BuildConfig.DEEPSEEK_BASE_URL,
+            model = BuildConfig.DEEPSEEK_MODEL
+        )
+    }
 }
 
 class FakeDiaryAiProcessor : DiaryAiProcessor {
@@ -47,10 +61,12 @@ class FakeDiaryAiProcessor : DiaryAiProcessor {
         val lower = transcript.lowercase()
         return when {
             lower.containsAny("工作", "会议", "项目", "需求", "上线", "bug", "work", "meeting") -> "work"
-            lower.containsAny("学习", "课程", "读书", "考试", "复习", "study", "book") -> "study"
-            lower.containsAny("运动", "跑步", "睡眠", "身体", "健康", "医院", "health", "run") -> "health"
-            lower.containsAny("开心", "难过", "焦虑", "生气", "情绪", "心情", "emotion") -> "emotion"
-            else -> "life"
+            lower.containsAny("读书", "阅读", "小说", "课程", "学习", "reading", "book") -> "reading"
+            lower.containsAny("吃饭", "晚饭", "午饭", "早餐", "餐厅", "咖啡", "food") -> "food"
+            lower.containsAny("运动", "跑步", "健身", "篮球", "游泳", "sports", "run") -> "sports"
+            lower.containsAny("电影", "音乐", "游戏", "综艺", "娱乐", "entertainment") -> "entertainment"
+            lower.containsAny("开心", "难过", "焦虑", "生气", "情绪", "心情", "疲惫", "mood") -> "mood"
+            else -> "mood"
         }
     }
 
@@ -58,9 +74,10 @@ class FakeDiaryAiProcessor : DiaryAiProcessor {
         val lower = transcript.lowercase()
         val tags = mutableListOf<String>()
         if (lower.containsAny("工作", "会议", "项目", "work", "meeting")) tags += "工作"
-        if (lower.containsAny("学习", "读书", "课程", "study", "book")) tags += "学习"
+        if (lower.containsAny("学习", "读书", "阅读", "课程", "book")) tags += "阅读"
+        if (lower.containsAny("吃饭", "晚饭", "午饭", "早餐", "咖啡")) tags += "美食"
         if (lower.containsAny("运动", "跑步", "健身", "run")) tags += "运动"
-        if (lower.containsAny("朋友", "家人", "聚餐", "family", "friend")) tags += "生活"
+        if (lower.containsAny("电影", "音乐", "游戏", "综艺")) tags += "娱乐"
         if (lower.containsAny("开心", "难过", "焦虑", "心情")) tags += "情绪"
         return tags.distinct().take(MAX_TAG_COUNT)
     }

@@ -10,7 +10,7 @@
 - Do not connect real backend diary create/update APIs.
 - Do not implement remote audio upload, backend job creation, or backend polling.
 - Do not modify `XfyunAudioApi` or the ASR upload/job polling main path.
-- Do not implement real AI category classification, dynamic tag generation, or article polishing yet.
+- Do not implement backend-hosted AI yet.
 - Do not implement detail edit/delete, search/list enhancement, or UI text cleanup.
 
 ## Decisions (Locked 2026-05-09)
@@ -19,8 +19,8 @@
    - Existing `DiaryApi` / `DiaryRepository` contracts remain the placeholder boundary.
    - No real network implementation is wired in Step 10.
 2. Category set:
-   - Use the Step 5/9 MVP set: `work`, `study`, `life`, `emotion`, `health`.
-   - Blank or unsupported category falls back to `life`.
+   - Use the current diary AI set: `reading`, `food`, `mood`, `work`, `sports`, `entertainment`.
+   - Blank or unsupported category falls back to `mood`.
 3. Tag normalization:
    - Trim whitespace.
    - Drop blank values.
@@ -30,9 +30,9 @@
    - Empty transcript must not be saved as `processed_succeeded`.
    - The caller must keep or move the entry into a failure state.
 5. Local fake AI boundary:
-   - Until real AI integration exists, `DiaryAssemblyUseCase` calls a local fake processor after ASR transcript success.
+   - `DiaryAssemblyUseCase` calls a configurable `DiaryAiProcessor` after ASR transcript success.
    - AI processor failure must not block diary creation.
-   - On AI failure, save `rawTranscript`, fall back `polishedArticle` to transcript, and fall back category to `life`.
+   - On AI failure, save `rawTranscript`, fall back `polishedArticle` to transcript, and fall back category to `mood`.
    - Tags may be empty after normalization.
 
 ## Implementation Notes
@@ -66,6 +66,20 @@
 - Detail display separates category from dynamic tags; category remains in summary and the tags card displays only `dynamicTags`.
 - Verified on real device by user after fixing duplicate display for the work/meeting transcript case.
 
+## 2026-05-10 DeepSeek AI Update
+- Added `DeepSeekDiaryAiProcessor` as the real AI provider.
+- Added `DiaryAiPromptFactory` as the centralized prompt builder.
+- `DiaryAiProcessor` now selects DeepSeek or fake processor based on `BuildConfig.DEEPSEEK_USE_FAKE`.
+- DeepSeek configuration is read from `local.properties`:
+  - `deepseek.apiKey`
+  - `deepseek.baseUrl`
+  - `deepseek.model`
+  - `deepseek.useFake`
+- DeepSeek uses chat completions with `response_format = json_object`.
+- The prompt requires JSON only and maps transcript into `title`, `polishedArticle`, `primaryCategoryId`, and `dynamicTags`.
+- The allowed category set is now `reading`, `food`, `mood`, `work`, `sports`, `entertainment`.
+- `DiaryAssemblyUseCase` still normalizes category/tags and falls back to transcript if DeepSeek fails.
+
 ## Same-day Multiple Entry Validation Target
 Pass criteria:
 1. Record and process two entries on the same local date.
@@ -76,7 +90,7 @@ Pass criteria:
 ## Risk Notes
 - Remote diary save is still not implemented; this is intentional for the current phase.
 - Processing status and sync status are now separated for the local MVP.
-- AI category/tag/polishing are local fake outputs and should not be treated as final AI output quality.
+- DeepSeek is currently called directly from Android for development validation; production should move the DeepSeek key behind a backend proxy.
 
 ## Sign-off Status
 - Android: Implemented local diary assembly/save boundary.

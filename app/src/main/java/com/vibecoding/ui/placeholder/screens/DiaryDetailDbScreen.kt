@@ -147,7 +147,7 @@ fun DiaryDetailDbScreen(
                     onEdit = {
                         editTitle = state.storedTitle.ifBlank { state.title }
                         editArticle = state.polishedArticle
-                        editCategory = state.category.ifBlank { "life" }
+                        editCategory = state.category.ifBlank { "mood" }
                         editTags = state.tags.joinToString(", ")
                         editDate = state.entryDateLocal
                         editError = null
@@ -259,7 +259,7 @@ private fun SummaryCard(state: DiaryDetailDbUiState) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(state.displayTime, color = PlaceholderColors.SecondaryText, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(12.dp))
-        Chip(text = state.category.ifBlank { "life" })
+        Chip(text = state.category.ifBlank { "mood" })
     }
 }
 
@@ -327,7 +327,7 @@ private fun EditDiaryCard(
             value = category,
             onValueChange = onCategoryChange,
             label = { Text("分类") },
-            supportingText = { Text("work / study / life / emotion / health") },
+            supportingText = { Text("reading / food / mood / work / sports / entertainment") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )

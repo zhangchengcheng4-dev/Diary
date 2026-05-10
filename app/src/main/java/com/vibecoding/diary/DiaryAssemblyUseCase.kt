@@ -9,10 +9,10 @@ import com.vibecoding.data.local.db.AppDatabase
 
 class DiaryAssemblyUseCase(
     context: Context,
-    private val diaryAiProcessor: DiaryAiProcessor = FakeDiaryAiProcessor()
+    private val diaryAiProcessor: DiaryAiProcessor = createDefaultDiaryAiProcessor()
 ) {
     companion object {
-        private val ALLOWED_CATEGORIES = setOf("work", "study", "life", "emotion", "health")
+        private val ALLOWED_CATEGORIES = setOf("reading", "food", "mood", "work", "sports", "entertainment")
     }
 
     private val db = AppDatabase.getInstance(context.applicationContext)
@@ -73,8 +73,8 @@ class DiaryAssemblyUseCase(
     }
 
     private fun normalizeCategory(category: String?): String {
-        val c = category?.trim()?.lowercase() ?: "life"
-        return if (c in ALLOWED_CATEGORIES) c else "life"
+        val c = category?.trim()?.lowercase() ?: "mood"
+        return if (c in ALLOWED_CATEGORIES) c else "mood"
     }
 
     private fun normalizeTags(tags: List<String>?, category: String): List<String> {
@@ -90,10 +90,11 @@ class DiaryAssemblyUseCase(
     private fun normalizeTag(tag: String): String {
         return when (tag.trim().lowercase()) {
             "work", "工作" -> "工作"
-            "study", "学习" -> "学习"
-            "life", "生活" -> "生活"
-            "emotion", "情绪" -> "情绪"
-            "health", "健康" -> "健康"
+            "reading", "阅读", "读书" -> "阅读"
+            "food", "美食", "吃饭" -> "美食"
+            "mood", "情绪", "心情" -> "情绪"
+            "sports", "运动", "跑步" -> "运动"
+            "entertainment", "娱乐", "电影", "游戏" -> "娱乐"
             else -> tag.trim().lowercase()
         }
     }

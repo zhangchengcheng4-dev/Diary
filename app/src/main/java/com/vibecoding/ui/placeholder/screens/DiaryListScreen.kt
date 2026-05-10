@@ -194,7 +194,7 @@ class DiaryListDbViewModel(
                         ?: preview.take(18).ifBlank { "语音日记" },
                     preview = preview,
                     dateText = formatDateText(entry.entryDateLocal),
-                    category = entry.primaryCategoryId.ifBlank { "life" },
+                    category = entry.primaryCategoryId.ifBlank { "mood" },
                     tags = entry.dynamicTags
                         .split(",")
                         .map { it.trim() }

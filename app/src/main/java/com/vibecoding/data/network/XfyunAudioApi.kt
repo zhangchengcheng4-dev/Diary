@@ -92,7 +92,7 @@ class XfyunAudioApi(
                 jobId = jobId,
                 status = "succeeded",
                 transcript = transcript,
-                category = "life", // Temporary AI placeholder.
+                category = "mood", // Temporary AI placeholder.
                 tags = emptyList(), // Temporary AI placeholder.
                 polishedArticle = transcript // Temporary AI placeholder.
             ),

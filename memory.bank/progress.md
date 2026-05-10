@@ -214,6 +214,29 @@
   - Compile passed: `./gradlew :app:compileDebugKotlin`.
 - Current status: `Completed and real-device verified for local fake AI tag boundary`.
 
+### DeepSeek AI Integration Slice
+- Added independent DeepSeek integration record: `STEP10_DEEPSEEK_AI_INTEGRATION_SIGNOFF.md`.
+- Scope: real AI provider only; no backend, sync, WorkManager, Room schema, Xfyun, recording main-chain, or UI refactor changes.
+- Added DeepSeek configuration through `local.properties`:
+  - `deepseek.apiKey`
+  - `deepseek.baseUrl`
+  - `deepseek.model`
+  - `deepseek.useFake`
+- Added `DeepSeekDiaryAiProcessor` using DeepSeek chat completions with `response_format = json_object`.
+- Added `DiaryAiPromptFactory` so prompt text is centralized and not scattered in business logic.
+- Updated `DiaryAiProcessor` default selection:
+  - `deepseek.useFake=true` uses local fake AI.
+  - `deepseek.useFake=false` uses DeepSeek.
+- Updated diary AI category set to `reading`, `food`, `mood`, `work`, `sports`, `entertainment`.
+- Kept fallback behavior: DeepSeek HTTP failure, JSON parse failure, invalid fields, or missing config still saves the original transcript.
+- Privacy boundary:
+  - DeepSeek provider does not log transcript, API key, or local audio paths.
+  - API key is read from `local.properties` and must not be committed.
+- Validation:
+  - `./gradlew :app` was attempted but is not a valid Gradle task in this project.
+  - Compile passed: `./gradlew :app:compileDebugKotlin`.
+- Current status: `Implemented (Compile verified, ready for real-device DeepSeek validation)`.
+
 ### Step 14 Loading Error Empty States
 - Added independent Step 14 file: `STEP14_LOADING_ERROR_EMPTY_STATES_SIGNOFF.md`.
 - Scope: local processing UI state cleanup only; no backend, sync, WorkManager, real AI, Room schema, Xfyun, or recording main-chain changes.
